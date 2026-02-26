@@ -1,0 +1,11 @@
+name: SkriptSyntaxGenerator
+version: '1.0'
+main: jp.nlaocs.skriptSyntaxGenerator.SkriptSyntaxGenerator
+api-version: '1.21'
+authors: [ nlaocs ]
+depend: [ Skript]
+commands:
+    skgen:
+        description: Skript Syntax Generator Main Command
+        usage: /skgen
+        permission: skgen.use
