@@ -239,3 +239,4 @@ class EventData : Common {
         this.hasOnPrefix = s.name().startsWith("On ")
     }
 }
+// todo addon別
