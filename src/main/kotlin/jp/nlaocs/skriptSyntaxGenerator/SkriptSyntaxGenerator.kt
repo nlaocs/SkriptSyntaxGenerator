@@ -6,6 +6,7 @@ import ch.njol.skript.registrations.Classes
 import org.bukkit.plugin.java.JavaPlugin
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
 import org.skriptlang.skript.registration.SyntaxRegistry
+import org.skriptlang.skript.util.Priority
 
 class SkriptSyntaxGenerator : JavaPlugin() {
 
@@ -53,18 +54,20 @@ class Common {
     var documentationId: String? = null
     var elementClass: String? = null
     var superClass: String? = null
-    var since: Array<String>? = null
-    var description: Array<String>? = null
-    var examples: Array<String>? = null
-    var keywords: Array<String>? = null
-    var requiredPlugins: Array<String>? = null
+    var since: List<String>? = null
+    var description: List<String>? = null
+    var examples: List<String>? = null
+    var keywords: List<String>? = null
+    var requiredPlugins: List<String>? = null
     var noDoc: Boolean = false
-    var events: Array<String>? = null
+    var events: List<String>? = null
     var deprecated: Boolean = false
-    var priority: String? = null
+
+    //var priority: String? = null
+    var priority: Priority? = null
 
     // todo list
-    var patterns: Array<String> = emptyArray()
+    var patterns: List<String> = emptyList()
 
     // todo Skript-Reflectで追加したExpressionなどはどのような扱いなのか？
     var addon: AddonInfo? = null
@@ -79,16 +82,16 @@ class Common {
         id: String?,
         documentationId: String?,
         elementClass: Class<*>,
-        since: Array<String>?,
-        description: Array<String>?,
-        examples: Array<String>?,
-        keywords: Array<String>?,
-        requiredPlugins: Array<String>?,
+        since: List<String>?,
+        description: List<String>?,
+        examples: List<String>?,
+        keywords: List<String>?,
+        requiredPlugins: List<String>?,
         noDoc: Boolean,
-        events: Array<String>?,
+        events: List<String>?,
         deprecated: Boolean,
-        priority: String?,
-        patterns: Array<String>
+        priority: Priority?,
+        patterns: List<String>
     ) {
         this.name = name
         this.id = id
@@ -110,6 +113,27 @@ class Common {
         this.addon = AddonInfo(
             name = providerPlugin.name,
             version = providerPlugin.description.version
+        )
+    }
+
+    constructor(s: BukkitSyntaxInfos.Event<*>) {
+        initCommon(
+            name = s.name(),
+            id = s.id(),
+            documentationId = s.documentationId(),
+            elementClass = s.type(),
+            since = s.since().toList(),
+            description = s.description().toList(),
+            examples = s.examples().toList(),
+            keywords = s.keywords().toList(),
+            requiredPlugins = s.requiredPlugins().toList(),
+            noDoc = false, // todo
+            // todo 特定のeventの中でしか使えなくするものだが、eventそのものなのでnullにしている。
+            // 将来的には設計変えるかも
+            events = null,
+            deprecated = false, // todo
+            priority = s.priority(),
+            patterns = s.patterns().toList()
         )
     }
 }
