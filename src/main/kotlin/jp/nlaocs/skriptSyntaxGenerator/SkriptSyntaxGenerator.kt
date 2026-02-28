@@ -50,7 +50,7 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
 class Common {
     var name: String? = null
     var id: String? = null
-    var documentationID: String? = null
+    var documentationId: String? = null
     var elementClass: String? = null
     var superClass: String? = null
     var since: Array<String>? = null
@@ -92,7 +92,7 @@ class Common {
     ) {
         this.name = name
         this.id = id
-        this.documentationID = documentationId
+        this.documentationId = documentationId
         this.elementClass = elementClass.name
         this.superClass = elementClass.superclass?.name
         this.since = since
