@@ -46,3 +46,70 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
         return false
     }
 }
+
+class Common {
+    var name: String? = null
+    var id: String? = null
+    var documentationID: String? = null
+    var elementClass: String? = null
+    var superClass: String? = null
+    var since: Array<String>? = null
+    var description: Array<String>? = null
+    var examples: Array<String>? = null
+    var keywords: Array<String>? = null
+    var requiredPlugins: Array<String>? = null
+    var noDoc: Boolean = false
+    var events: Array<String>? = null
+    var deprecated: Boolean = false
+    var priority: String? = null
+
+    // todo list
+    var patterns: Array<String> = emptyArray()
+
+    // todo Skript-Reflectで追加したExpressionなどはどのような扱いなのか？
+    var addon: AddonInfo? = null
+
+    data class AddonInfo(
+        var name: String,
+        var version: String
+    )
+
+    private fun initCommon(
+        name: String?,
+        id: String?,
+        documentationId: String?,
+        elementClass: Class<*>,
+        since: Array<String>?,
+        description: Array<String>?,
+        examples: Array<String>?,
+        keywords: Array<String>?,
+        requiredPlugins: Array<String>?,
+        noDoc: Boolean,
+        events: Array<String>?,
+        deprecated: Boolean,
+        priority: String?,
+        patterns: Array<String>
+    ) {
+        this.name = name
+        this.id = id
+        this.documentationID = documentationId
+        this.elementClass = elementClass.name
+        this.superClass = elementClass.superclass?.name
+        this.since = since
+        this.description = description
+        this.examples = examples
+        this.keywords = keywords
+        this.requiredPlugins = requiredPlugins
+        this.noDoc = noDoc
+        this.events = events
+        this.deprecated = deprecated
+        this.priority = priority
+        this.patterns = patterns
+
+        val providerPlugin = JavaPlugin.getProvidingPlugin(elementClass)
+        this.addon = AddonInfo(
+            name = providerPlugin.name,
+            version = providerPlugin.description.version
+        )
+    }
+}
