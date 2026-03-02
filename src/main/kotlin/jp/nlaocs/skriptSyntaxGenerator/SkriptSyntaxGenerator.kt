@@ -28,6 +28,7 @@ import ch.njol.skript.expressions.base.PropertyExpression
 import ch.njol.skript.lang.Condition
 import ch.njol.skript.lang.Effect
 import ch.njol.skript.lang.Section
+import org.skriptlang.skript.lang.entry.EntryValidator
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
 import java.nio.file.Paths
@@ -106,6 +107,24 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 expressionDataList.add(expressionData)
             }
             FileUtils.writeToFile("expressions.json", gson.toJson(expressionDataList))
+
+            // types
+            // functions
+
+            val sectionDataList = mutableListOf<SectionData>()
+            for (section in sections) {
+                val sectionData = SectionData(section)
+                sectionDataList.add(sectionData)
+            }
+            FileUtils.writeToFile("sections.json", gson.toJson(sectionDataList))
+
+            val structureDataList = mutableListOf<StructureData>()
+            for (structure in structures) {
+                val structureData = StructureData(structure)
+                structureDataList.add(structureData)
+            }
+            FileUtils.writeToFile("structures.json", gson.toJson(structureDataList))
+
 
             sender.sendMessage("Skript syntax data generation completed!")
             return true
@@ -319,5 +338,25 @@ class ExpressionData : Common {
         this.returnType = s.returnType()
     }
 }
+
+// todo type
+
+// todo function
+
+class SectionData : Common {
+    constructor(s: SyntaxInfo<out Section>) : super(s)
+}
+
+class StructureData : Common {
+    var entryValidator: EntryValidator? = null
+    var nodeType: DefaultSyntaxInfos.Structure.NodeType? = null
+
+    constructor(s: DefaultSyntaxInfos.Structure<*>) : super(s) {
+        this.entryValidator = s.entryValidator()
+        this.nodeType = s.nodeType()
+    }
+}
+
 // todo addon別
 // todo json順序を逆に
+// todo Expressionに、get可能やset可能などの情報も追加する
