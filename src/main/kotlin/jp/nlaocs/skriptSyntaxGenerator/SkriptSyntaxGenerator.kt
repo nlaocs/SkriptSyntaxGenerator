@@ -23,7 +23,6 @@ import ch.njol.skript.doc.Keywords
 import ch.njol.skript.doc.RequiredPlugins
 import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.Events
-import ch.njol.skript.doc.Documentable // todo <- ?!
 
 
 import java.nio.file.Paths
@@ -108,36 +107,24 @@ object FileUtils {
     }
 }
 
-// todo 拡張関数にしてもいいかも
-class Utils {
-    companion object {
-        @JvmStatic
-        fun <T : Annotation> getAnnotation(clazz: Class<*>, annotationClass: Class<T>): T? {
-            return if (clazz.isAnnotationPresent(annotationClass)) {
-                clazz.getAnnotation(annotationClass)
-            } else {
-                null
-            }
-        }
+inline fun <reified T : Annotation> Class<*>.anno(): T? =
+    getAnnotation(T::class.java)
 
-        @JvmStatic
-        fun <T : Annotation, V> getAnnotationValue(clazz: Class<*>, annotationClass: Class<T>): V? {
-            val annotation = getAnnotation(clazz, annotationClass)
-            return if (annotation != null) {
-                try {
-                    val value = annotationClass.getMethod("value").invoke(annotation)
-                    @Suppress("UNCHECKED_CAST")
-                    value as V
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    null
-                }
-            } else {
-                null
-            }
+inline fun <reified T : Annotation> Class<*>.hasAnno(): Boolean =
+    isAnnotationPresent(T::class.java)
+
+inline fun <reified T : Annotation, reified V> Class<*>.annoValue(method: String = "value"): V? =
+    anno<T>()?.let { ann ->
+        try {
+            T::class.java.getMethod(method).invoke(ann) as? V
+        } catch (e: ReflectiveOperationException) {
+            e.printStackTrace()
+            null
         }
     }
-}
+
+inline fun <reified T : Annotation, reified V> Class<*>.annoValues(method: String = "value"): List<V>? =
+    annoValue<T, Array<V>>(method)?.toList()
 
 open class Common {
     var name: String? = null
@@ -214,11 +201,11 @@ open class Common {
             examples = s.examples().toList(),
             keywords = s.keywords().toList(),
             requiredPlugins = s.requiredPlugins().toList(),
-            noDoc = Utils.getAnnotation(s.type(), NoDoc::class.java) != null,
+            noDoc = s.type().hasAnno<NoDoc>(),
             // todo 特定のeventの中でしか使えなくするものだが、eventそのものなのでnullにしている。
             // 将来的には設計変えるかも、Commonにいらないかも...
             events = null,
-            deprecated = Utils.getAnnotation(s.type(), Deprecated::class.java) != null,
+            deprecated = s.type().hasAnno<Deprecated>(),
             priority = s.priority(),
             patterns = s.patterns().toList()
         )
@@ -227,47 +214,29 @@ open class Common {
     constructor(s: SyntaxInfo<*>) {
         val type = s.type()
 
-        val name: String? = Utils.getAnnotationValue(type, Name::class.java)
+        val name: String? = type.annoValue<Name, String>()
 
-        val examples: List<String> = when {
-            type.isAnnotationPresent(Example::class.java) ->
-                listOf(type.getAnnotation(Example::class.java).value)
-
-            type.isAnnotationPresent(Example.Examples::class.java) ->
-                type.getAnnotation(Example.Examples::class.java)
-                    .value.map { it.value }
-
-            type.isAnnotationPresent(Examples::class.java) ->
-                type.getAnnotation(Examples::class.java)
-                    .value.toList()
-
-            else -> emptyList()
-        }.map { it.replaceFirst("\\R$".toRegex(), "") }
+        val examples: List<String> = type.anno<Example>()?.let { listOf(it.value) }
+            ?: type.anno<Example.Examples>()?.let { it.value.map { ex -> ex.value } }
+            ?: type.anno<Examples>()?.value?.toList()
+            ?: emptyList()
 
         initCommon(
             name = name,
             id = name?.lowercase(Locale.ROOT)?.replace(" ", "_"),
-            documentationId = Utils.getAnnotationValue(type, DocumentationId::class.java),
+            documentationId = type.annoValue<DocumentationId, String>(),
             elementClass = type,
-            since = type.arrayAnno<Since>(),
-            description = type.arrayAnno<Description>(),
+            since = type.annoValues<Since, String>(),
+            description = type.annoValues<Description, String>(),
             examples = examples,
-            keywords = type.arrayAnno<Keywords>(),
-            requiredPlugins = type.arrayAnno<RequiredPlugins>(),
+            keywords = type.annoValues<Keywords, String>(),
+            requiredPlugins = type.annoValues<RequiredPlugins, String>(),
             noDoc = type.hasAnno<NoDoc>(),
-            events = type.arrayAnno<Events>(),
+            events = type.annoValues<Events, String>(),
             deprecated = type.hasAnno<Deprecated>(),
             priority = s.priority(),
             patterns = s.patterns().toList()
         )
-    }
-
-    companion object {
-        inline fun <reified T : Annotation> Class<*>.arrayAnno(): List<String>? =
-            Utils.getAnnotationValue<T, Array<String>>(this, T::class.java)?.toList()
-
-        inline fun <reified T : Annotation> Class<*>.hasAnno(): Boolean =
-            Utils.getAnnotation(this, T::class.java) != null
     }
 }
 
