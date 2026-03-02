@@ -56,7 +56,7 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             val gson = GsonBuilder()
                 .registerTypeAdapter(
                     Class::class.java,
-                    com.google.gson.JsonSerializer<Class<*>> { src, typeOfSrc, context ->
+                    com.google.gson.JsonSerializer<Class<*>> { src, _, _ ->
                         com.google.gson.JsonPrimitive(src.name)
                     })
                 .serializeNulls()
