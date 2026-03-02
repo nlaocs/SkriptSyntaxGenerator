@@ -25,8 +25,10 @@ import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.Events
 import ch.njol.skript.expressions.base.EventValueExpression
 import ch.njol.skript.expressions.base.PropertyExpression
+import ch.njol.skript.lang.Condition
+import ch.njol.skript.lang.Effect
+import ch.njol.skript.lang.Section
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
-
 
 import java.nio.file.Paths
 import java.util.Locale
@@ -303,11 +305,11 @@ class EventData : Common {
 }
 
 class ConditionData : Common {
-    constructor(s: SyntaxInfo<*>) : super(s)
+    constructor(s: SyntaxInfo<out Condition>) : super(s)
 }
 
 class EffectData : Common {
-    constructor(s: SyntaxInfo<*>) : super(s)
+    constructor(s: SyntaxInfo<out Effect>) : super(s)
 }
 
 class ExpressionData : Common {
