@@ -253,10 +253,6 @@ open class Common {
             patterns = s.patterns().toList()
         )
     }
-
-    constructor(s: DefaultSyntaxInfos.Expression<*, *>) {
-
-    }
 }
 
 class EventData : Common {
@@ -311,3 +307,4 @@ class ExpressionData : Common {
 }
 // todo addon別
 // todo priority_str的なのを追加。Simple、Customなどを先にチェックすることで、入れ子の構造をできるだけ読み取らずに判断する
+// json順序を逆に
