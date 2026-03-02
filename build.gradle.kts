@@ -19,7 +19,7 @@ repositories {
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
-    compileOnly("com.github.SkriptLang:Skript:2.14.1")
+    compileOnly("com.github.SkriptLang:Skript:2.14.2")
     implementation("com.google.code.gson:gson:2.13.2")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
@@ -37,7 +37,7 @@ tasks {
         args("--port", "25595")
         downloadPlugins {
             //https://github.com/SkriptLang/Skript
-            github("SkriptLang", "Skript", "2.14.1", "Skript-2.14.1.jar")
+            github("SkriptLang", "Skript", "2.14.2", "Skript-2.14.2.jar")
 
         }
     }
