@@ -9,10 +9,25 @@ import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.plugin.java.JavaPlugin
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
+import org.skriptlang.skript.registration.SyntaxInfo
 import org.skriptlang.skript.registration.SyntaxRegistry
 import org.skriptlang.skript.util.Priority
 
+import ch.njol.skript.doc.Name
+import ch.njol.skript.doc.DocumentationId
+import ch.njol.skript.doc.Since
+import ch.njol.skript.doc.Description
+import ch.njol.skript.doc.Example
+import ch.njol.skript.doc.Examples
+import ch.njol.skript.doc.Keywords
+import ch.njol.skript.doc.RequiredPlugins
+import ch.njol.skript.doc.NoDoc
+import ch.njol.skript.doc.Events
+import ch.njol.skript.doc.Documentable // todo <- ?!
+
+
 import java.nio.file.Paths
+import java.util.Locale
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 
@@ -60,13 +75,19 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             val sections = registry.syntaxes(SyntaxRegistry.SECTION)
             val structures = registry.syntaxes(SyntaxRegistry.STRUCTURE)
 
-            val eventDataList = mutableListOf<Common>()
+            val eventDataList = mutableListOf<EventData>()
             for (event in events) {
-                val common = Common(event)
                 val eventData = EventData(event)
                 eventDataList.add(eventData)
             }
             FileUtils.writeToFile("events.json", gson.toJson(eventDataList))
+
+            val conditionDataList = mutableListOf<ConditionData>()
+            for (condition in conditions) {
+                val conditionData = ConditionData(condition)
+                conditionDataList.add(conditionData)
+            }
+            FileUtils.writeToFile("conditions.json", gson.toJson(conditionDataList))
 
             sender.sendMessage("Skript syntax data generation completed!")
             return true
@@ -87,6 +108,7 @@ object FileUtils {
     }
 }
 
+// todo 拡張関数にしてもいいかも
 class Utils {
     companion object {
         @JvmStatic
@@ -131,11 +153,7 @@ open class Common {
     var noDoc: Boolean = false
     var events: List<String>? = null
     var deprecated: Boolean = false
-
-    //var priority: String? = null
     var priority: Priority? = null
-
-    // todo list
     var patterns: List<String> = emptyList()
 
     // todo Skript-Reflectで追加したExpressionなどはどのような扱いなのか？
@@ -196,7 +214,7 @@ open class Common {
             examples = s.examples().toList(),
             keywords = s.keywords().toList(),
             requiredPlugins = s.requiredPlugins().toList(),
-            noDoc = Utils.getAnnotation(s.type(), ch.njol.skript.doc.NoDoc::class.java) != null,
+            noDoc = Utils.getAnnotation(s.type(), NoDoc::class.java) != null,
             // todo 特定のeventの中でしか使えなくするものだが、eventそのものなのでnullにしている。
             // 将来的には設計変えるかも、Commonにいらないかも...
             events = null,
@@ -204,6 +222,52 @@ open class Common {
             priority = s.priority(),
             patterns = s.patterns().toList()
         )
+    }
+
+    constructor(s: SyntaxInfo<*>) {
+        val type = s.type()
+
+        val name: String? = Utils.getAnnotationValue(type, Name::class.java)
+
+        val examples: List<String> = when {
+            type.isAnnotationPresent(Example::class.java) ->
+                listOf(type.getAnnotation(Example::class.java).value)
+
+            type.isAnnotationPresent(Example.Examples::class.java) ->
+                type.getAnnotation(Example.Examples::class.java)
+                    .value.map { it.value }
+
+            type.isAnnotationPresent(Examples::class.java) ->
+                type.getAnnotation(Examples::class.java)
+                    .value.toList()
+
+            else -> emptyList()
+        }.map { it.replaceFirst("\\R$".toRegex(), "") }
+
+        initCommon(
+            name = name,
+            id = name?.lowercase(Locale.ROOT)?.replace(" ", "_"),
+            documentationId = Utils.getAnnotationValue(type, DocumentationId::class.java),
+            elementClass = type,
+            since = type.arrayAnno<Since>(),
+            description = type.arrayAnno<Description>(),
+            examples = examples,
+            keywords = type.arrayAnno<Keywords>(),
+            requiredPlugins = type.arrayAnno<RequiredPlugins>(),
+            noDoc = type.hasAnno<NoDoc>(),
+            events = type.arrayAnno<Events>(),
+            deprecated = type.hasAnno<Deprecated>(),
+            priority = s.priority(),
+            patterns = s.patterns().toList()
+        )
+    }
+
+    companion object {
+        inline fun <reified T : Annotation> Class<*>.arrayAnno(): List<String>? =
+            Utils.getAnnotationValue<T, Array<String>>(this, T::class.java)?.toList()
+
+        inline fun <reified T : Annotation> Class<*>.hasAnno(): Boolean =
+            Utils.getAnnotation(this, T::class.java) != null
     }
 }
 
@@ -238,5 +302,9 @@ class EventData : Common {
 
         this.hasOnPrefix = s.name().startsWith("On ")
     }
+}
+
+class ConditionData : Common {
+    constructor(s: SyntaxInfo<*>) : super(s)
 }
 // todo addon別
