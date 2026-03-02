@@ -23,6 +23,8 @@ import ch.njol.skript.doc.Keywords
 import ch.njol.skript.doc.RequiredPlugins
 import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.Events
+import ch.njol.skript.expressions.base.EventValueExpression
+import ch.njol.skript.expressions.base.PropertyExpression
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
 
@@ -141,6 +143,16 @@ inline fun <reified T : Annotation, reified V> Class<*>.annoValue(method: String
 inline fun <reified T : Annotation, reified V> Class<*>.annoValues(method: String = "value"): List<V>? =
     annoValue<T, Array<V>>(method)?.toList()
 
+fun Priority?.toPriorityStr(): String? = when (this) {
+    null -> null
+    SyntaxInfo.SIMPLE -> "SyntaxInfos.SIMPLE" // = ExpressionType.SIMPLE
+    SyntaxInfo.COMBINED -> "SyntaxInfos.COMBINED" // = ExpressionType.COMBINED
+    SyntaxInfo.PATTERN_MATCHES_EVERYTHING -> "SyntaxInfos.PATTERN_MATCHES_EVERYTHING" // = ExpressionType.PATTERN_MATCHES_EVERYTHING
+    EventValueExpression.DEFAULT_PRIORITY -> "EventValueExpression.DEFAULT_PRIORITY" // = ExpressionType.EVENT
+    PropertyExpression.DEFAULT_PRIORITY -> "PropertyExpression.DEFAULT_PRIORITY" // = ExpressionType.PROPERTY
+    else -> "CUSTOM"
+}
+
 open class Common {
     var name: String? = null
     var id: String? = null
@@ -155,6 +167,7 @@ open class Common {
     var noDoc: Boolean = false
     var events: List<String>? = null
     var deprecated: Boolean = false
+    var priorityStr: String? = null
     var priority: Priority? = null
     var patterns: List<String> = emptyList()
 
@@ -195,6 +208,7 @@ open class Common {
         this.noDoc = noDoc
         this.events = events
         this.deprecated = deprecated
+        this.priorityStr = priority.toPriorityStr()
         this.priority = priority
         this.patterns = patterns
 
@@ -302,9 +316,6 @@ class ExpressionData : Common {
     constructor(s: DefaultSyntaxInfos.Expression<*, *>) : super(s) {
         this.returnType = s.returnType()
     }
-
-
 }
 // todo addon別
-// todo priority_str的なのを追加。Simple、Customなどを先にチェックすることで、入れ子の構造をできるだけ読み取らずに判断する
-// json順序を逆に
+// todo json順序を逆に
