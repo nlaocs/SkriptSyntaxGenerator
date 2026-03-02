@@ -88,6 +88,13 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             }
             FileUtils.writeToFile("conditions.json", gson.toJson(conditionDataList))
 
+            val effectDataList = mutableListOf<EffectData>()
+            for (effect in effects) {
+                val effectData = EffectData(effect)
+                effectDataList.add(effectData)
+            }
+            FileUtils.writeToFile("effects.json", gson.toJson(effectDataList))
+
             sender.sendMessage("Skript syntax data generation completed!")
             return true
         }
@@ -274,6 +281,10 @@ class EventData : Common {
 }
 
 class ConditionData : Common {
+    constructor(s: SyntaxInfo<*>) : super(s)
+}
+
+class EffectData : Common {
     constructor(s: SyntaxInfo<*>) : super(s)
 }
 // todo addon別
