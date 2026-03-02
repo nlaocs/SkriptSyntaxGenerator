@@ -23,6 +23,7 @@ import ch.njol.skript.doc.Keywords
 import ch.njol.skript.doc.RequiredPlugins
 import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.Events
+import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
 
 import java.nio.file.Paths
@@ -94,6 +95,13 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 effectDataList.add(effectData)
             }
             FileUtils.writeToFile("effects.json", gson.toJson(effectDataList))
+
+            val expressionDataList = mutableListOf<ExpressionData>()
+            for (expression in expressions) {
+                val expressionData = ExpressionData(expression)
+                expressionDataList.add(expressionData)
+            }
+            FileUtils.writeToFile("expressions.json", gson.toJson(expressionDataList))
 
             sender.sendMessage("Skript syntax data generation completed!")
             return true
@@ -245,6 +253,10 @@ open class Common {
             patterns = s.patterns().toList()
         )
     }
+
+    constructor(s: DefaultSyntaxInfos.Expression<*, *>) {
+
+    }
 }
 
 class EventData : Common {
@@ -287,4 +299,15 @@ class ConditionData : Common {
 class EffectData : Common {
     constructor(s: SyntaxInfo<*>) : super(s)
 }
+
+class ExpressionData : Common {
+    var returnType: Class<*>? = null
+
+    constructor(s: DefaultSyntaxInfos.Expression<*, *>) : super(s) {
+        this.returnType = s.returnType()
+    }
+
+
+}
 // todo addon別
+// todo priority_str的なのを追加。Simple、Customなどを先にチェックすることで、入れ子の構造をできるだけ読み取らずに判断する
