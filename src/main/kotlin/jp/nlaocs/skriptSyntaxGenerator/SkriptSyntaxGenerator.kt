@@ -1,6 +1,8 @@
 package jp.nlaocs.skriptSyntaxGenerator
 
 import ch.njol.skript.Skript
+import ch.njol.skript.classes.Changer
+import ch.njol.skript.classes.ClassInfo
 import ch.njol.skript.lang.function.Functions
 import ch.njol.skript.registrations.Classes
 import ch.njol.skript.registrations.EventValues
@@ -26,13 +28,25 @@ import ch.njol.skript.doc.Events
 import ch.njol.skript.expressions.base.EventValueExpression
 import ch.njol.skript.expressions.base.PropertyExpression
 import ch.njol.skript.lang.Condition
+import ch.njol.skript.lang.DefaultExpression
 import ch.njol.skript.lang.Effect
 import ch.njol.skript.lang.Section
+import ch.njol.skript.localization.Noun
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonSerializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonDeserializationContext
+
 import org.skriptlang.skript.lang.entry.EntryValidator
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
 import java.nio.file.Paths
 import java.util.Locale
+import java.util.function.Supplier
+import java.util.regex.Pattern
+import java.lang.reflect.Type
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 
@@ -64,6 +78,7 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                     com.google.gson.JsonSerializer<Class<*>> { src, _, _ ->
                         com.google.gson.JsonPrimitive(src.name)
                     })
+                .registerTypeAdapter(Pattern::class.java, PatternAdapter())
                 .serializeNulls()
                 .disableHtmlEscaping()
                 .setPrettyPrinting()
@@ -108,7 +123,13 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             }
             FileUtils.writeToFile("expressions.json", gson.toJson(expressionDataList))
 
-            // types
+            val typeDataList = mutableListOf<TypeData>()
+            for (type in types) {
+                val typeData = TypeData(type)
+                typeDataList.add(typeData)
+            }
+            FileUtils.writeToFile("types.json", gson.toJson(typeDataList))
+
             // functions
 
             val sectionDataList = mutableListOf<SectionData>()
@@ -145,6 +166,25 @@ object FileUtils {
     }
 }
 
+class PatternAdapter : JsonSerializer<Pattern>, JsonDeserializer<Pattern> {
+
+    override fun serialize(
+        src: Pattern,
+        typeOfSrc: Type,
+        context: JsonSerializationContext
+    ): JsonElement {
+        return JsonPrimitive(src.pattern())
+    }
+
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type,
+        context: JsonDeserializationContext
+    ): Pattern {
+        return Pattern.compile(json.asString)
+    }
+}
+
 inline fun <reified T : Annotation> Class<*>.anno(): T? =
     getAnnotation(T::class.java)
 
@@ -163,6 +203,30 @@ inline fun <reified T : Annotation, reified V> Class<*>.annoValue(method: String
 
 inline fun <reified T : Annotation, reified V> Class<*>.annoValues(method: String = "value"): List<V>? =
     annoValue<T, Array<V>>(method)?.toList()
+
+fun Class<*>.getTypeStr(): String = when {
+    isAnnotation -> "Annotation"
+    isEnum -> "Enum"
+    isInterface -> "Interface"
+    isArray -> "Array"
+    isPrimitive -> "Primitive"
+    isRecord -> "Record"
+    isSealed -> "Sealed"
+    isSynthetic -> "Synthetic"
+    isMemberClass -> "MemberClass"
+    isLocalClass -> "LocalClass"
+    isAnonymousClass -> "AnonymousClass"
+    else -> "Class"
+}
+
+fun Class<*>.toStringListSafe(): List<String> {
+    if (!isEnum) return emptyList()
+    return (enumConstants as Array<Enum<*>>).map { constant ->
+        constant.name
+            .lowercase(Locale.ENGLISH)
+            .replace('_', ' ')
+    }
+}
 
 fun Priority?.toPriorityStr(): String? = when (this) {
     null -> null
@@ -339,7 +403,89 @@ class ExpressionData : Common {
     }
 }
 
-// todo type
+class TypeData {
+    var originalClass: Class<*>? = null
+    var classType: String? = null
+    var codeName: String? = null
+    var superClass: Class<*>? = null
+    var name: Noun? = null
+
+    //var defaultExpression: DefaultExpression<*>? = null
+    var defaultExpressionClass: Class<out DefaultExpression<*>>? = null
+
+    //var parser: Parser<*>? = null
+    var parserClass: Class<*>? = null
+    //var cloner: Cloner<*>? = null
+
+    //var userInputPatterns: List<String>? = null
+    var userInputPatterns: List<Pattern>? = null
+
+    //var changer: Changer<*>? = null
+    var changerClass: Class<out Changer<*>>? = null
+    var supplier: Supplier<*>? = null
+    var supplierClass: Class<*>? = null
+
+    //var serializer: Serializer<*>? = null // stackoverflow
+    var serializerClass: Class<*>? = null
+    var serializeAs: Class<*>? = null
+
+//    var before: List<String>? = emptyList()
+//    var after: List<String>? = emptyList()
+
+    //var mathRelativeType: Class<*>? = null
+    var docName: String? = null
+    var description: List<String?>? = null
+    var usage: List<String?>? = null
+    var examples: List<String?>? = null
+    var since: String? = null
+    var requiredPlugins: List<String?>? = null
+    //var properties: List<Property<*>>? = null // 不安定 stackoverflow
+    //var propertyInfos: Map<Property<*>, Property.PropertyInfo<*>>? = null // 不安定
+    //var propertyDocumentation: Map<Property<*>, ClassInfo.PropertyDocs>? = null // 不安定
+    //var propertyDocumentation: ClassInfo.PropertyDocs? = null
+
+    constructor(s: ClassInfo<*>) {
+        this.originalClass = s.c
+        this.classType = s.c.getTypeStr()
+        this.codeName = s.codeName
+        this.superClass = s.c.superclass
+        this.name = s.name
+        //this.defaultExpression = s.defaultExpressin
+        this.defaultExpressionClass = s.defaultExpression?.javaClass
+        //this.parser = s.parser
+        this.parserClass = s.parser?.javaClass
+        //this.cloner = s.cloner
+        this.userInputPatterns = s.userInputPatterns?.toList()
+        /*val userInputPatterns = s.userInputPatterns
+        val userInputPatternsStr: List<String>? = userInputPatterns?.map { it.pattern().toString() }
+        this.userInputPatterns = userInputPatternsStr*/
+        //this.changer = s.changer
+        this.changerClass = s.changer?.javaClass
+        //this.supplier = s.supplier
+        this.supplierClass = s.supplier?.javaClass
+        //this.serializer = s.serializer
+        this.serializerClass = s.serializer?.javaClass
+        this.serializeAs = s.serializeAs
+        //this.before = s.before()?.toList()
+        //this.after = s.after()?.toList()
+        /*val field = s.javaClass.getDeclaredField("mathRelativeType")
+        field.isAccessible = true
+        val mathRelativeTypeValue = field.get(s) as? Class<*>
+        this.mathRelativeType = mathRelativeTypeValue*/
+        this.docName = s.docName
+        this.description = s.description?.toList()
+        //this.usage = s.usage?.toList()
+        //if (s.c.getTypeStr() == "Enum") {
+        this.usage = s.c.toStringListSafe().ifEmpty { s.usage?.toList() }
+        this.examples = s.examples?.toList()
+        this.since = s.since
+        this.requiredPlugins = s.requiredPlugins?.toList()
+        //this.properties = s.allProperties.toList()
+        //this.propertyInfos = s.getPropertyInfos()
+        //this.propertyDocumentation = s.getPropertyDocumentation()
+
+    }
+}
 
 // todo function
 
@@ -360,3 +506,6 @@ class StructureData : Common {
 // todo addon別
 // todo json順序を逆に
 // todo Expressionに、get可能やset可能などの情報も追加する
+// usageを文字連結でのリストではなく配列に
+// ""しかないusageはnullに
+// typeには解析順序がある
