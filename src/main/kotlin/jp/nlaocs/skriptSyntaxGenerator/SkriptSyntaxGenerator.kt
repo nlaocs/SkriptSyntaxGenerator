@@ -230,6 +230,13 @@ fun Class<*>.toStringListSafe(): List<String> {
     }
 }
 
+// listの中のstringをtrimして空文字のものを除外するやつ、nullのものも除外、すべて空文字の場合nullを返す
+fun List<String?>?.cleaning(): List<String?>? {
+    if (this == null) return null
+    val cleaned = this.mapNotNull { it?.trim()?.takeIf { it.isNotEmpty() } }
+    return cleaned.ifEmpty { null }
+}
+
 fun Priority?.toPriorityStr(): String? = when (this) {
     null -> null
     SyntaxInfo.SIMPLE -> "SyntaxInfos.SIMPLE" // = ExpressionType.SIMPLE
@@ -526,7 +533,7 @@ class TypeData {
         this.description = s.description?.toList()
         //this.usage = s.usage?.toList()
         //if (s.c.getTypeStr() == "Enum") {
-        this.usage = s.c.toStringListSafe().ifEmpty { s.usage?.toList() }
+        this.usage = s.c.toStringListSafe().ifEmpty { s.usage?.toList() }.cleaning()
         this.examples = s.examples?.toList()
         this.since = s.since
         this.requiredPlugins = s.requiredPlugins?.toList()
@@ -555,8 +562,6 @@ class StructureData : Common {
 
 // todo addon別
 // todo json順序を逆に
-// todo Expressionに、get可能やset可能などの情報も追加する
-// usageを文字連結でのリストではなく配列に
-// ""しかないusageはnullに
 // typeには解析順序がある
 // todo typeのnameのgenderなどはソースコード解析時に設定されるものと思われるので構文リストに載せる必要はない
+// todo typeのcolorなどのinterfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
