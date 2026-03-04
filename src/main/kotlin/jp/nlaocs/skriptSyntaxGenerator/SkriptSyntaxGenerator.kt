@@ -565,3 +565,4 @@ class StructureData : Common {
 // typeには解析順序がある
 // todo typeのnameのgenderなどはソースコード解析時に設定されるものと思われるので構文リストに載せる必要はない
 // todo typeのcolorなどのinterfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
+// todo typeのbeforeやafter、またaliasesの定義も取得する
