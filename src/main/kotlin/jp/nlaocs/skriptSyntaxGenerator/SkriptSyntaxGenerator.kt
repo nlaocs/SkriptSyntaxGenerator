@@ -30,6 +30,7 @@ import ch.njol.skript.expressions.base.PropertyExpression
 import ch.njol.skript.lang.Condition
 import ch.njol.skript.lang.DefaultExpression
 import ch.njol.skript.lang.Effect
+import ch.njol.skript.lang.Expression
 import ch.njol.skript.lang.Section
 import ch.njol.skript.localization.Noun
 import com.google.gson.JsonDeserializer
@@ -38,6 +39,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonDeserializationContext
+import org.bukkit.Bukkit
 
 import org.skriptlang.skript.lang.entry.EntryValidator
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
@@ -398,8 +400,56 @@ class EffectData : Common {
 class ExpressionData : Common {
     var returnType: Class<*>? = null
 
+    var returnTypeMultiplicity: Multiplicity? = null
+    var acceptedChangers: Map<Changer.ChangeMode, List<Class<*>>>? = null
+
     constructor(s: DefaultSyntaxInfos.Expression<*, *>) : super(s) {
         this.returnType = s.returnType()
+        var instance: Expression<*>? = s.instance()
+        if (instance == null) {
+            Bukkit.getLogger().warning(
+                "Failed to create instance of ${s.type().name}. acceptedChangers will be null."
+            )
+            this.acceptedChangers = null
+            return
+        }
+
+        this.acceptedChangers = try {
+            instance.acceptedChangeModes?.mapValues { (_, array) -> array.toList() }
+        } catch (e: Throwable) {
+            Bukkit.getLogger().warning(
+                "Failed to read acceptedChangeModes for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
+            )
+            null
+        }
+
+        val multiplicity = try {
+            instance.isSingle
+        } catch (e: Throwable) {
+            Bukkit.getLogger().warning(
+                "Failed to read isSingle for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
+            )
+            null
+        }
+        this.returnTypeMultiplicity = Multiplicity.fromBoolean(multiplicity)
+    }
+
+    enum class Multiplicity {
+        SINGLE, MULTIPLE, BOTH;
+
+        fun toBoolean(): Boolean? = when (this) {
+            SINGLE -> true
+            MULTIPLE -> false
+            BOTH -> null
+        }
+
+        companion object {
+            fun fromBoolean(value: Boolean?): Multiplicity = when (value) {
+                true -> SINGLE
+                false -> MULTIPLE
+                null -> BOTH
+            }
+        }
     }
 }
 
