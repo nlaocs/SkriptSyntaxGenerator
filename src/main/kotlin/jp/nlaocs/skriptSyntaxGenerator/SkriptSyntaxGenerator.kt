@@ -33,16 +33,25 @@ import ch.njol.skript.lang.Effect
 import ch.njol.skript.lang.Expression
 import ch.njol.skript.lang.Section
 import ch.njol.skript.localization.Noun
+import ch.njol.skript.util.StringMode
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonSerializer
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonNull
+import com.google.gson.JsonObject
 import org.bukkit.Bukkit
+import org.skriptlang.skript.lang.entry.EntryData
 
 import org.skriptlang.skript.lang.entry.EntryValidator
+import org.skriptlang.skript.lang.entry.KeyValueEntryData
+import org.skriptlang.skript.lang.entry.SectionEntryData
+import org.skriptlang.skript.lang.entry.util.LiteralEntryData
+import org.skriptlang.skript.lang.entry.util.VariableStringEntryData
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
+import java.lang.reflect.Field
 
 import java.nio.file.Paths
 import java.util.Locale
@@ -77,10 +86,11 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             val gson = GsonBuilder()
                 .registerTypeAdapter(
                     Class::class.java,
-                    com.google.gson.JsonSerializer<Class<*>> { src, _, _ ->
-                        com.google.gson.JsonPrimitive(src.name)
+                    JsonSerializer<Class<*>> { src, _, _ ->
+                        JsonPrimitive(src.name)
                     })
                 .registerTypeAdapter(Pattern::class.java, PatternAdapter())
+                //.registerTypeHierarchyAdapter(EntryData::class.java, EntryDataSerializer()) todo 実装
                 .serializeNulls()
                 .disableHtmlEscaping()
                 .setPrettyPrinting()
@@ -156,6 +166,50 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
         return false
     }
 }
+
+class EntryDataSerializer : JsonSerializer<EntryData<*>> {
+
+    override fun serialize(src: EntryData<*>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
+        val obj = JsonObject()
+
+        obj.addProperty("key", src.key)
+        obj.add("defaultValue", context.serialize(src.defaultValue))
+        obj.addProperty("optional", src.isOptional)
+        obj.addProperty("multiple", src.supportsMultiple())
+        obj.addProperty("entryDataClass", src::class.simpleName)
+
+        when (src) {
+            is LiteralEntryData<*> -> {
+                try {
+                    val typeField = LiteralEntryData::class.java.getDeclaredField("type")
+                    typeField.isAccessible = true
+                    val type = typeField.get(src) as Class<*>
+                    obj.addProperty("type", type.name)
+                } catch (e: Exception) {
+                    obj.add("type", JsonNull.INSTANCE)
+                }
+            }
+
+            is VariableStringEntryData -> {
+                try {
+                    val stringModeField = VariableStringEntryData::class.java.getDeclaredField("stringMode")
+                    stringModeField.isAccessible = true
+                    val stringMode = stringModeField.get(src) as StringMode
+                    obj.addProperty("stringMode", stringMode.name)
+                } catch (e: Exception) {
+                    obj.add("stringMode", JsonNull.INSTANCE)
+                }
+            }
+
+            /*is KeyValueEntryData -> {
+
+            }*/
+            // SectionEntryData の場合は単純に型名だけを記録
+        }
+
+        return obj
+    }
+} // todo!!!!!
 
 object FileUtils {
     @JvmStatic
@@ -566,3 +620,4 @@ class StructureData : Common {
 // todo typeのnameのgenderなどはソースコード解析時に設定されるものと思われるので構文リストに載せる必要はない
 // todo typeのcolorなどのinterfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
 // todo typeのbeforeやafter、またaliasesの定義も取得する
+// todo structuresのentryValidatorのentryDataのTypeなど、常に追加する
