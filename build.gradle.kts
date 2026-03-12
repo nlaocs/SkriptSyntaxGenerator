@@ -30,14 +30,15 @@ tasks {
         // Configure the Minecraft version for our task.
         // This is the only required configuration besides applying the plugin.
         // Your plugin's jar (or shadowJar if present) will be used automatically.
-        minecraftVersion("1.21")
+        minecraftVersion("1.21.11")
         javaLauncher = project.javaToolchains.launcherFor {
             languageVersion.set(JavaLanguageVersion.of(21))
         }
         args("--port", "25595")
         downloadPlugins {
             //https://github.com/SkriptLang/Skript
-            github("SkriptLang", "Skript", "2.14.2", "Skript-2.14.2.jar")
+            github("SkriptLang", "Skript", "2.14.3", "Skript-2.14.3.jar")
+            //modrinth("skbee", "3.17.1")
 
         }
     }

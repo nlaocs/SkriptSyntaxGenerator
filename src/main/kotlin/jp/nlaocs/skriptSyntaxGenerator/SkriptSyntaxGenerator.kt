@@ -33,6 +33,7 @@ import ch.njol.skript.lang.Effect
 import ch.njol.skript.lang.Expression
 import ch.njol.skript.lang.Section
 import ch.njol.skript.localization.Noun
+import ch.njol.skript.util.Contract
 import ch.njol.skript.util.StringMode
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonSerializer
@@ -46,12 +47,11 @@ import org.bukkit.Bukkit
 import org.skriptlang.skript.lang.entry.EntryData
 
 import org.skriptlang.skript.lang.entry.EntryValidator
-import org.skriptlang.skript.lang.entry.KeyValueEntryData
-import org.skriptlang.skript.lang.entry.SectionEntryData
 import org.skriptlang.skript.lang.entry.util.LiteralEntryData
 import org.skriptlang.skript.lang.entry.util.VariableStringEntryData
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
-import java.lang.reflect.Field
+import org.skriptlang.skript.common.function.Function
+import org.skriptlang.skript.common.function.Parameter
 
 import java.nio.file.Paths
 import java.util.Locale
@@ -143,6 +143,12 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             FileUtils.writeToFile("types.json", gson.toJson(typeDataList))
 
             // functions
+            val functionDataList = mutableListOf<FunctionData>()
+            for (function in functions) {
+                val functionData = FunctionData(function)
+                functionDataList.add(functionData)
+            }
+            FileUtils.writeToFile("functions.json", gson.toJson(functionDataList))
 
             val sectionDataList = mutableListOf<SectionData>()
             for (section in sections) {
@@ -468,9 +474,9 @@ class ExpressionData : Common {
         this.returnType = s.returnType()
         var instance: Expression<*>? = s.instance()
         if (instance == null) {
-            Bukkit.getLogger().warning(
+            /*Bukkit.getLogger().warning(
                 "Failed to create instance of ${s.type().name}. acceptedChangers will be null."
-            )
+            )*/
             this.acceptedChangers = null
             return
         }
@@ -478,18 +484,18 @@ class ExpressionData : Common {
         this.acceptedChangers = try {
             instance.acceptedChangeModes?.mapValues { (_, array) -> array.toList() }
         } catch (e: Throwable) {
-            Bukkit.getLogger().warning(
+            /*Bukkit.getLogger().warning(
                 "Failed to read acceptedChangeModes for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
-            )
+            )*/
             null
         }
 
         val multiplicity = try {
             instance.isSingle
         } catch (e: Throwable) {
-            Bukkit.getLogger().warning(
+            /*Bukkit.getLogger().warning(
                 "Failed to read isSingle for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
-            )
+            )*/
             null
         }
         this.returnTypeMultiplicity = Multiplicity.fromBoolean(multiplicity)
@@ -598,7 +604,200 @@ class TypeData {
     }
 }
 
-// todo function
+class FunctionData {
+    var name: String? = null
+
+    //var returnsKeys: List<String>? = null
+    var returnType: Class<*>? = null
+    var returnTypeIsSingle: Boolean? = null
+
+    //var originalClass: Class<*>? = null
+    var addon: Common.AddonInfo? = null
+
+    //var contract: Contract? = null
+    var contractClass: Class<out Contract>? = null // todo いるのか？
+    var since: List<String>? = null
+    var description: List<String>? = null
+    var examples: List<String>? = null
+    var keywords: List<String>? = null
+    var requires: List<String>? = null
+
+    //var parameters: Parameter<*>? = null
+    //var parameters: Parameters? = null
+//    var parameters: List<Parameter<*>>? = null
+    var parameters: List<ParameterInfo>? = null
+
+    data class ParameterInfo(
+        var name: String,
+        var type: Class<*>,
+        var modifiers: List<ModifierInfo>,
+        //var hasModifier: Boolean,
+        var isSingle: Boolean,
+        //var defaultExpressionClass: Class<out DefaultExpression<*>>?,
+    ) {
+        /*constructor(param: Parameter<*>) : this({
+            /*name = param.name(),
+            type = param.type(),
+            modifiers = param.modifiers().map { ModifierInfo.from(it) }.toList(),
+            //hasModifier = param.modifiers().isNotEmpty(),
+            isSingle = param.isSingle*/
+            if (param is ch.njol.skript.lang.function.Parameter<*>) {
+                name = param.name()
+                type = param.type()
+                modifiers = param.modifiers().map { ModifierInfo.from(it) }.toList()
+                isSingle = param.isSingle
+            } else {
+                // ありえないはずだが一応
+                name = "unknown"
+                type = Any::class.java
+                modifiers = emptyList()
+                isSingle = true
+            }
+
+
+        })*/
+        constructor(param: Parameter<*>) : this(
+            name = param.name(),
+            type = param.type(),
+            //modifiers = param.modifiers().map { ModifierInfo.from(it) }.toList(),
+            modifiers =
+                if (param is ch.njol.skript.lang.function.Parameter<*>) {
+                    param.modifiers().map { ModifierInfo.from(it) }.toList()
+                } else {
+                    param.modifiers().map { ModifierInfo.from(it) }.toList()
+                },
+            isSingle = param.isSingle
+        )
+
+        data class ModifierInfo(
+            val type: String,
+            val min: Any? = null,
+            val max: Any? = null
+        ) {
+            companion object {
+                fun from(mod: Parameter.Modifier): ModifierInfo {
+                    return when (mod) {
+                        Parameter.Modifier.OPTIONAL ->
+                            ModifierInfo("optional")
+
+                        Parameter.Modifier.KEYED ->
+                            ModifierInfo("keyed")
+
+                        is Parameter.Modifier.RangedModifier<*> ->
+                            ModifierInfo(
+                                "range",
+                                mod.min,
+                                mod.max
+                            )
+
+                        else ->
+                            ModifierInfo("unknown")
+                    }
+                }
+            }
+        }
+
+    }
+
+    constructor(s: Function<*>) {
+        // todo
+        // sを出力
+        //Bukkit.getLogger().info("Function: $s in ${s.javaClass.name}")
+        /*originalClass = s.javaClass
+        signature = s.signature()
+        returnsKeys = s.returnedKeys().toList()*/
+        /*if (f instanceof ch.njol.skript.lang.function.Function<?> func) {
+        func.getSignature().getName(); // ✅
+        func.getName();                // ✅
+    }*/
+        if (s is ch.njol.skript.lang.function.Function<*>) {
+            //this.name = s.
+            /*this.originalClass = s.javaClass
+            this.signature = s.signature()
+            this.returnsKeys = s.returnedKeys().toList()*/
+            //Bukkit.getLogger().info("Function: ${s.signature()} in ${s.javaClass.name}")
+            this.name = s.name
+            this.returnType = s.type()
+            this.returnTypeIsSingle = s.isSingle
+//            this.contract = s.signature.contract
+            this.contractClass = s.signature.contract?.javaClass // todo いるのか?
+            //this.parameters = s.signature.parameters().all().toList()
+            this.parameters = s.signature.parameters().all().map { ParameterInfo(it) }.toList()
+
+            /*val providerPlugin = JavaPlugin.getProvidingPlugin(s.javaClass)
+            this.addon = Common.AddonInfo(
+                name = providerPlugin.name,
+                version = providerPlugin.description.version
+            )*/
+
+
+            when (s) {
+                is org.skriptlang.skript.common.function.DefaultFunction<*> -> {
+                    /*this.name = s.name
+                    this.signature = s.signature
+                    this.returnType = s.returnType?.c
+                    this.originalClass = s.javaClass*/
+
+                    // not null
+                    this.since = s.since()
+                    this.description = s.description()
+                    this.examples = s.examples()
+                    this.keywords = s.keywords()
+                    this.requires = s.requires()
+                    val providerPlugin = JavaPlugin.getProvidingPlugin(s.source().source())
+                    this.addon = Common.AddonInfo(
+                        name = providerPlugin.name,
+                        version = providerPlugin.description.version
+                    )
+
+
+                }
+
+                is ch.njol.skript.lang.function.SimpleJavaFunction<*> -> {
+                    /*this.name = s.name
+                    this.signature = s.signature
+                    this.returnType = s.returnType?.c
+                    this.originalClass = s.javaClass*/
+
+                    this.since = s.since()
+                    this.description = s.description()
+                    this.examples = s.examples()
+                    this.keywords = s.keywords()
+                    this.requires = s.requires()
+                    val providerPlugin = JavaPlugin.getProvidingPlugin(Class.forName(s.signature.originClassPath))
+                    this.addon = Common.AddonInfo(
+                        name = providerPlugin.name,
+                        version = providerPlugin.description.version
+                    )
+                }
+
+                is ch.njol.skript.lang.function.JavaFunction<*> -> {
+                    /*this.name = s.name
+                    this.signature = s.signature
+                    this.returnType = s.returnType?.c
+                    this.originalClass = s.javaClass*/
+
+                    this.since = s.since()
+                    this.description = s.description()
+                    this.examples = s.examples()
+                    this.keywords = s.keywords()
+                    this.requires = s.requires()
+                    val providerPlugin = JavaPlugin.getProvidingPlugin(Class.forName(s.signature.originClassPath))
+                    this.addon = Common.AddonInfo(
+                        name = providerPlugin.name,
+                        version = providerPlugin.description.version
+                    )
+                }
+
+                else ->
+                    Bukkit.getLogger().warning("Unknown Function implementation: ${s.javaClass.name}. Skipping.")
+            }
+        } else {
+            Bukkit.getLogger().warning("Unknown Function implementation: ${s.javaClass.name}. Skipping.")
+        }
+        //this.name = sig.
+    }
+}
 
 class SectionData : Common {
     constructor(s: SyntaxInfo<out Section>) : super(s)
@@ -621,3 +820,5 @@ class StructureData : Common {
 // todo typeのcolorなどのinterfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
 // todo typeのbeforeやafter、またaliasesの定義も取得する
 // todo structuresのentryValidatorのentryDataのTypeなど、常に追加する
+// todo 要素ゼロのListはnullにする
+// todo https://github.com/SkriptLang/Skript/blob/eae1f09622cd39b44b98527e2915476029453e32/src/main/java/org/skriptlang/skript/lang/arithmetic/Arithmetics.java#L16
