@@ -1,6 +1,11 @@
 package jp.nlaocs.skriptSyntaxGenerator
 
 import ch.njol.skript.Skript
+import ch.njol.skript.aliases.Aliases
+import ch.njol.skript.aliases.AliasesProvider
+import ch.njol.skript.aliases.ItemData
+import ch.njol.skript.aliases.ItemType
+import ch.njol.skript.aliases.ScriptAliases
 import ch.njol.skript.classes.Changer
 import ch.njol.skript.classes.ClassInfo
 import ch.njol.skript.lang.function.Functions
@@ -44,6 +49,7 @@ import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import org.bukkit.Bukkit
+import org.bukkit.inventory.meta.ItemMeta
 import org.skriptlang.skript.lang.entry.EntryData
 
 import org.skriptlang.skript.lang.entry.EntryValidator
@@ -106,6 +112,8 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             val functions = Functions.getFunctions()
             val sections = registry.syntaxes(SyntaxRegistry.SECTION)
             val structures = registry.syntaxes(SyntaxRegistry.STRUCTURE)
+            // todo getAddonProviderは、引数にかかわらず同じproviderを返してくるので今はこうしている。将来的にaddonごとのproviderが返されるようになった場合変更する
+            //val aliases = Aliases.getAddonProvider(Skript.getAddonInstance())
 
             val eventDataList = mutableListOf<EventData>()
             for (event in events) {
@@ -163,6 +171,14 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 structureDataList.add(structureData)
             }
             FileUtils.writeToFile("structures.json", gson.toJson(structureDataList))
+
+            /*val aliasesData = mutableListOf<AliasesData>()
+            if (aliases != null) {
+                val aliasData = AliasesData(aliases)
+                aliasesData.add(aliasData)
+
+            }
+            FileUtils.writeToFile("aliases.json", gson.toJson(aliasesData))*/
 
 
             sender.sendMessage("Skript syntax data generation completed!")
@@ -813,12 +829,72 @@ class StructureData : Common {
     }
 }
 
+/*
+class AliasesData {
+    /*var name: String? = null
+    var originalClass: Class<*>? = null
+    var aliasCount: Int? = null
+    var aliases: Map<String, ItemType>? = null*/
+    //var datas: List<AliasData>? = null
+    var data: MutableMap<String, AliasData> = mutableMapOf()
+
+
+    data class AliasData(
+        val types: List<ItemData>,
+        //val all: Boolean,
+        val amount: Int,
+        /*val item: ItemType,
+        val block: ItemType,*/
+        //val globalMeta: ItemMeta
+    )
+
+    constructor(provider: AliasesProvider?) {
+        if (provider == null) {
+            Bukkit.getLogger().warning("AliasesProvider is null. No aliases data will be generated.")
+            return
+        }
+
+        try {
+            val field = provider.javaClass.getDeclaredField("aliases")
+            field.isAccessible = true
+            val aliasesMap = field.get(provider) as? Map<String, ItemType>
+            if (aliasesMap == null) {
+                Bukkit.getLogger()
+                    .warning("Failed to cast AliasesProvider.aliases to Map<String, ItemType>. No aliases data will be generated.")
+                return
+            }
+
+            for ((aliasName, itemType) in aliasesMap) {
+                val types = itemType.types.toList()
+                //val all = itemType.all
+                val amount = itemType.amount
+                //val item = itemType.item
+                //val block = itemType.block
+                //val globalMeta = itemType.globalMeta
+
+                data[aliasName] = AliasData(
+                    types = types,
+                    //all = all,
+                    amount = amount,
+                    //item = item,
+                    //block = block,
+                    //globalMeta = globalMeta
+                )
+            }
+        } catch (e: Exception) {
+            Bukkit.getLogger()
+                .warning("Failed to access AliasesProvider.aliases: ${e.javaClass.simpleName}: ${e.message}. No aliases data will be generated.")
+        }
+    }
+}*/
+
 // todo addon別
 // todo json順序を逆に
-// typeには解析順序がある
+// todo typeには解析順序がある
 // todo typeのnameのgenderなどはソースコード解析時に設定されるものと思われるので構文リストに載せる必要はない
-// todo typeのcolorなどのinterfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
+// todo typeのcolorなどの、interfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
 // todo typeのbeforeやafter、またaliasesの定義も取得する
 // todo structuresのentryValidatorのentryDataのTypeなど、常に追加する
 // todo 要素ゼロのListはnullにする
 // todo https://github.com/SkriptLang/Skript/blob/eae1f09622cd39b44b98527e2915476029453e32/src/main/java/org/skriptlang/skript/lang/arithmetic/Arithmetics.java#L16
+// todo 過去バージョンのためalias
