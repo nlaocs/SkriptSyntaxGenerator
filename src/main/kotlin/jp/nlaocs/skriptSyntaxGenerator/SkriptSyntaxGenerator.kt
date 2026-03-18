@@ -48,6 +48,8 @@ import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonNull
 import com.google.gson.JsonObject
+import com.google.gson.TypeAdapter
+import jp.nlaocs.gson.RuntimeTypeAdapterFactory
 import org.bukkit.Bukkit
 import org.bukkit.inventory.meta.ItemMeta
 import org.skriptlang.skript.lang.entry.EntryData
@@ -58,6 +60,13 @@ import org.skriptlang.skript.lang.entry.util.VariableStringEntryData
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
 import org.skriptlang.skript.common.function.Function
 import org.skriptlang.skript.common.function.Parameter
+import org.skriptlang.skript.lang.entry.ContainerEntryData
+import org.skriptlang.skript.lang.entry.EntryContainer
+import org.skriptlang.skript.lang.entry.KeyValueEntryData
+import org.skriptlang.skript.lang.entry.SectionEntryData
+import org.skriptlang.skript.lang.entry.util.ExpressionEntryData
+import org.skriptlang.skript.lang.entry.util.TriggerEntryData
+import java.lang.reflect.Modifier
 
 import java.nio.file.Paths
 import java.util.Locale
@@ -89,6 +98,17 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
         if (command.name.equals("skgen", ignoreCase = true)) {
             sender.sendMessage("Generating Skript syntax data...")
 
+            val entryDataAdapter = RuntimeTypeAdapterFactory
+                .of(EntryData::class.java, "entryDataClass")
+                .registerSubtype(LiteralEntryData::class.java)
+                .registerSubtype(VariableStringEntryData::class.java)
+                .registerSubtype(ExpressionEntryData::class.java)
+                .registerSubtype(TriggerEntryData::class.java)
+                .registerSubtype(ContainerEntryData::class.java)
+                .registerSubtype(KeyValueEntryData::class.java)
+                .registerSubtype(SectionEntryData::class.java)
+
+
             val gson = GsonBuilder()
                 .registerTypeAdapter(
                     Class::class.java,
@@ -96,7 +116,9 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                         JsonPrimitive(src.name)
                     })
                 .registerTypeAdapter(Pattern::class.java, PatternAdapter())
-                //.registerTypeHierarchyAdapter(EntryData::class.java, EntryDataSerializer()) todo 実装
+                .registerTypeHierarchyAdapter(EntryData::class.java, EntryDataSerializer())
+                //.registerTypeAdapterFactory(entryDataAdapter)
+                //.registerTypeAdapter(java.awt.Color::class.java, ColorAdapter())
                 .serializeNulls()
                 .disableHtmlEscaping()
                 .setPrettyPrinting()
@@ -150,7 +172,6 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
             }
             FileUtils.writeToFile("types.json", gson.toJson(typeDataList))
 
-            // functions
             val functionDataList = mutableListOf<FunctionData>()
             for (function in functions) {
                 val functionData = FunctionData(function)
@@ -201,7 +222,14 @@ class EntryDataSerializer : JsonSerializer<EntryData<*>> {
         obj.addProperty("entryDataClass", src::class.simpleName)
 
         when (src) {
-            is LiteralEntryData<*> -> {
+            is LiteralEntryData<*> -> {}
+            is VariableStringEntryData -> {}
+            is ExpressionEntryData<*> -> {}
+            is TriggerEntryData -> {}
+            is ContainerEntryData -> {}
+            is KeyValueEntryData -> {}
+            is SectionEntryData -> {}
+            /*is LiteralEntryData<*> -> {
                 try {
                     val typeField = LiteralEntryData::class.java.getDeclaredField("type")
                     typeField.isAccessible = true
@@ -221,7 +249,7 @@ class EntryDataSerializer : JsonSerializer<EntryData<*>> {
                 } catch (e: Exception) {
                     obj.add("stringMode", JsonNull.INSTANCE)
                 }
-            }
+            }*/
 
             /*is KeyValueEntryData -> {
 
@@ -232,6 +260,17 @@ class EntryDataSerializer : JsonSerializer<EntryData<*>> {
         return obj
     }
 } // todo!!!!!
+
+class ColorAdapter : TypeAdapter<java.awt.Color>() {
+    override fun write(out: com.google.gson.stream.JsonWriter, value: java.awt.Color) {
+        out.value(String.format("#%02x%02x%02x", value.red, value.green, value.blue))
+    }
+
+    override fun read(`in`: com.google.gson.stream.JsonReader): java.awt.Color {
+        val colorStr = `in`.nextString()
+        return java.awt.Color.decode(colorStr)
+    }
+}
 
 object FileUtils {
     @JvmStatic
