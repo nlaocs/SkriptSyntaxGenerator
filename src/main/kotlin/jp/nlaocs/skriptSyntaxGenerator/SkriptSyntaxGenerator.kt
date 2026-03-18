@@ -50,6 +50,7 @@ import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.TypeAdapter
 import jp.nlaocs.gson.RuntimeTypeAdapterFactory
+import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
 import org.bukkit.Bukkit
 import org.bukkit.inventory.meta.ItemMeta
 import org.skriptlang.skript.lang.entry.EntryData
@@ -109,20 +110,7 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 .registerSubtype(SectionEntryData::class.java)
 
 
-            val gson = GsonBuilder()
-                .registerTypeAdapter(
-                    Class::class.java,
-                    JsonSerializer<Class<*>> { src, _, _ ->
-                        JsonPrimitive(src.name)
-                    })
-                .registerTypeAdapter(Pattern::class.java, PatternAdapter())
-                .registerTypeHierarchyAdapter(EntryData::class.java, EntryDataSerializer())
-                //.registerTypeAdapterFactory(entryDataAdapter)
-                //.registerTypeAdapter(java.awt.Color::class.java, ColorAdapter())
-                .serializeNulls()
-                .disableHtmlEscaping()
-                .setPrettyPrinting()
-                .create()
+            val gson = GsonFactory.create()
 
             val registry: SyntaxRegistry = Skript.instance().syntaxRegistry()
 
@@ -280,25 +268,6 @@ object FileUtils {
 
         dirPath.createDirectories()
         filePath.writeText(content)
-    }
-}
-
-class PatternAdapter : JsonSerializer<Pattern>, JsonDeserializer<Pattern> {
-
-    override fun serialize(
-        src: Pattern,
-        typeOfSrc: Type,
-        context: JsonSerializationContext
-    ): JsonElement {
-        return JsonPrimitive(src.pattern())
-    }
-
-    override fun deserialize(
-        json: JsonElement,
-        typeOfT: Type,
-        context: JsonDeserializationContext
-    ): Pattern {
-        return Pattern.compile(json.asString)
     }
 }
 
