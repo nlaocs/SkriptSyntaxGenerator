@@ -24,7 +24,7 @@ open class CommonSyntaxData(
     val elementClass: Class<*>,
     val since: List<String>?,
     val description: List<String>?,
-    val examples: List<String>?,
+    var examples: List<String>?,
     val keywords: List<String>?,
     val requiredPlugins: List<String>?,
     val noDoc: Boolean,
@@ -73,11 +73,7 @@ open class CommonSyntaxData(
         elementClass = s.type(),
         since = s.type().annoValues<Since, String>(),
         description = s.type().annoValues<Description, String>(),
-        examples =
-            s.type().anno<Example>()?.let { listOf(it.value) }
-                ?: s.type().anno<Example.Examples>()?.let { it.value.map { ex -> ex.value } }
-                ?: s.type().anno<Examples>()?.value?.toList()
-                ?: emptyList(),
+        examples = null,
         keywords = s.type().annoValues<Keywords, String>(),
         requiredPlugins = s.type().annoValues<RequiredPlugins, String>(),
         noDoc = s.type().hasAnno<NoDoc>(),
@@ -92,5 +88,12 @@ open class CommonSyntaxData(
                 version = it.description.version
             )
         }
-    )
+    ) {
+        val type = s.type()
+
+        examples =
+            type.anno<Example>()?.let { listOf(it.value) }
+                ?: type.anno<Example.Examples>()?.let { it.value.map { ex -> ex.value } }
+                        ?: type.anno<Examples>()?.value?.toList()
+    }
 } // todo 実装が汚い気がする..
