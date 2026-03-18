@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSerializer
-import jp.nlaocs.skriptSyntaxGenerator.EntryDataSerializer
 import org.skriptlang.skript.lang.entry.EntryData
 import java.util.regex.Pattern
 
