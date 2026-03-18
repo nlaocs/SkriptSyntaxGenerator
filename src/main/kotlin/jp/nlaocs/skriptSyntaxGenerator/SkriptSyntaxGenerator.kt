@@ -210,17 +210,6 @@ class ColorAdapter : TypeAdapter<java.awt.Color>() {
     }
 }
 
-object FileUtils {
-    @JvmStatic
-    fun writeToFile(fileName: String, content: String) {
-        val dirPath = Paths.get("plugins", "SkriptSyntaxGenerator")
-        val filePath = dirPath.resolve(fileName)
-
-        dirPath.createDirectories()
-        filePath.writeText(content)
-    }
-}
-
 open class Common {
     var name: String? = null
     var id: String? = null
