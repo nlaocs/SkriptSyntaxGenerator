@@ -17,7 +17,7 @@ import org.skriptlang.skript.registration.SyntaxInfo
 import org.skriptlang.skript.util.Priority
 import java.util.Locale
 
-open class Common(
+open class CommonSyntaxData(
     val name: String?,
     val id: String?,
     val documentationId: String?,
