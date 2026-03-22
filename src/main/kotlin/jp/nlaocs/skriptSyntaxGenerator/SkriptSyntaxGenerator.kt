@@ -90,8 +90,6 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
 
             val gson = GsonFactory.create()
 
-            val registry: SyntaxRegistry = Skript.instance().syntaxRegistry()
-
             val types = Classes.getClassInfos()
             val functions = Functions.getFunctions()
             // todo getAddonProviderは、引数にかかわらず同じproviderを返してくるので今はこうしている。将来的にaddonごとのproviderが返されるようになった場合変更する
