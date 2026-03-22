@@ -33,6 +33,7 @@ import ch.njol.skript.localization.Noun
 import ch.njol.skript.util.Contract
 import com.google.gson.TypeAdapter
 import jp.nlaocs.gson.RuntimeTypeAdapterFactory
+import jp.nlaocs.skriptSyntaxGenerator.generator.SyntaxDataGenerator
 import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
 import jp.nlaocs.skriptSyntaxGenerator.util.*
 import org.bukkit.Bukkit
@@ -91,44 +92,13 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
 
             val registry: SyntaxRegistry = Skript.instance().syntaxRegistry()
 
-            val events = registry.syntaxes(BukkitSyntaxInfos.Event.KEY)
-            val conditions = registry.syntaxes(SyntaxRegistry.CONDITION)
-            val effects = registry.syntaxes(SyntaxRegistry.EFFECT)
-            val expressions = registry.syntaxes(SyntaxRegistry.EXPRESSION)
             val types = Classes.getClassInfos()
             val functions = Functions.getFunctions()
-            val sections = registry.syntaxes(SyntaxRegistry.SECTION)
-            val structures = registry.syntaxes(SyntaxRegistry.STRUCTURE)
             // todo getAddonProviderは、引数にかかわらず同じproviderを返してくるので今はこうしている。将来的にaddonごとのproviderが返されるようになった場合変更する
             //val aliases = Aliases.getAddonProvider(Skript.getAddonInstance())
 
-            val eventDataList = mutableListOf<EventData>()
-            for (event in events) {
-                val eventData = EventData(event)
-                eventDataList.add(eventData)
-            }
-            FileUtils.writeStringToFile("events.json", gson.toJson(eventDataList))
-
-            val conditionDataList = mutableListOf<ConditionData>()
-            for (condition in conditions) {
-                val conditionData = ConditionData(condition)
-                conditionDataList.add(conditionData)
-            }
-            FileUtils.writeStringToFile("conditions.json", gson.toJson(conditionDataList))
-
-            val effectDataList = mutableListOf<EffectData>()
-            for (effect in effects) {
-                val effectData = EffectData(effect)
-                effectDataList.add(effectData)
-            }
-            FileUtils.writeStringToFile("effects.json", gson.toJson(effectDataList))
-
-            val expressionDataList = mutableListOf<ExpressionData>()
-            for (expression in expressions) {
-                val expressionData = ExpressionData(expression)
-                expressionDataList.add(expressionData)
-            }
-            FileUtils.writeStringToFile("expressions.json", gson.toJson(expressionDataList))
+            val syntaxDataGenerator = SyntaxDataGenerator()
+            syntaxDataGenerator.generate()
 
             val typeDataList = mutableListOf<TypeData>()
             for (type in types) {
@@ -143,20 +113,6 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 functionDataList.add(functionData)
             }
             FileUtils.writeStringToFile("functions.json", gson.toJson(functionDataList))
-
-            val sectionDataList = mutableListOf<SectionData>()
-            for (section in sections) {
-                val sectionData = SectionData(section)
-                sectionDataList.add(sectionData)
-            }
-            FileUtils.writeStringToFile("sections.json", gson.toJson(sectionDataList))
-
-            val structureDataList = mutableListOf<StructureData>()
-            for (structure in structures) {
-                val structureData = StructureData(structure)
-                structureDataList.add(structureData)
-            }
-            FileUtils.writeStringToFile("structures.json", gson.toJson(structureDataList))
 
             /*val aliasesData = mutableListOf<AliasesData>()
             if (aliases != null) {
@@ -299,103 +255,6 @@ open class Common {
             priority = s.priority(),
             patterns = s.patterns().toList()
         )
-    }
-}
-
-class EventData : Common {
-    var referenceEvents: List<Class<out Event>>? = null
-    var eventValues: List<EventValues.EventValueInfo<*, *>> = emptyList()
-    var cancellable: Boolean = false
-    var hasOnPrefix: Boolean = false
-
-    constructor(s: BukkitSyntaxInfos.Event<*>) : super(s) {
-
-        this.referenceEvents = s.events().toList()
-        val allEventValues = EventValues.getPerEventEventValues()
-        val eventValueList = mutableListOf<EventValues.EventValueInfo<*, *>>()
-        for ((eventClass, info) in allEventValues.entries()) {
-            for (refEvent in referenceEvents ?: emptyList()) {
-                if (eventClass.isAssignableFrom(refEvent)) {
-                    eventValueList.add(info)
-                }
-            }
-
-        }
-        this.eventValues = eventValueList
-
-        this.cancellable = true
-        for (it in referenceEvents ?: emptyList()) {
-            if (!Cancellable::class.java.isAssignableFrom(it)) {
-                this.cancellable = false
-                break
-            }
-        }
-
-        this.hasOnPrefix = s.name().startsWith("On ")
-    }
-}
-
-class ConditionData : Common {
-    constructor(s: SyntaxInfo<out Condition>) : super(s)
-}
-
-class EffectData : Common {
-    constructor(s: SyntaxInfo<out Effect>) : super(s)
-}
-
-class ExpressionData : Common {
-    var returnType: Class<*>? = null
-
-    var returnTypeMultiplicity: Multiplicity? = null
-    var acceptedChangers: Map<Changer.ChangeMode, List<Class<*>>>? = null
-
-    constructor(s: DefaultSyntaxInfos.Expression<*, *>) : super(s) {
-        this.returnType = s.returnType()
-        var instance: Expression<*>? = s.instance()
-        if (instance == null) {
-            /*Bukkit.getLogger().warning(
-                "Failed to create instance of ${s.type().name}. acceptedChangers will be null."
-            )*/
-            this.acceptedChangers = null
-            return
-        }
-
-        this.acceptedChangers = try {
-            instance.acceptedChangeModes?.mapValues { (_, array) -> array.toList() }
-        } catch (e: Throwable) {
-            /*Bukkit.getLogger().warning(
-                "Failed to read acceptedChangeModes for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
-            )*/
-            null
-        }
-
-        val multiplicity = try {
-            instance.isSingle
-        } catch (e: Throwable) {
-            /*Bukkit.getLogger().warning(
-                "Failed to read isSingle for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
-            )*/
-            null
-        }
-        this.returnTypeMultiplicity = Multiplicity.fromBoolean(multiplicity)
-    }
-
-    enum class Multiplicity {
-        SINGLE, MULTIPLE, BOTH;
-
-        fun toBoolean(): Boolean? = when (this) {
-            SINGLE -> true
-            MULTIPLE -> false
-            BOTH -> null
-        }
-
-        companion object {
-            fun fromBoolean(value: Boolean?): Multiplicity = when (value) {
-                true -> SINGLE
-                false -> MULTIPLE
-                null -> BOTH
-            }
-        }
     }
 }
 
@@ -675,20 +534,6 @@ class FunctionData {
             Bukkit.getLogger().warning("Unknown Function implementation: ${s.javaClass.name}. Skipping.")
         }
         //this.name = sig.
-    }
-}
-
-class SectionData : Common {
-    constructor(s: SyntaxInfo<out Section>) : super(s)
-}
-
-class StructureData : Common {
-    var entryValidator: EntryValidator? = null
-    var nodeType: DefaultSyntaxInfos.Structure.NodeType? = null
-
-    constructor(s: DefaultSyntaxInfos.Structure<*>) : super(s) {
-        this.entryValidator = s.entryValidator()
-        this.nodeType = s.nodeType()
     }
 }
 
