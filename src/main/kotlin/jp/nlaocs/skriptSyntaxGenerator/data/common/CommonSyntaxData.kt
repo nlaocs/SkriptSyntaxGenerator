@@ -97,3 +97,4 @@ open class CommonSyntaxData(
                         ?: type.anno<Examples>()?.value?.toList()
     }
 } // todo 実装が汚い気がする..
+// todo IDを生成時点で決定しているのをやめる
