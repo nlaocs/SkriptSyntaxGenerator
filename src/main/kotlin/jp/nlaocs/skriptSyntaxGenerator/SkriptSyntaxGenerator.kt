@@ -1,17 +1,11 @@
 package jp.nlaocs.skriptSyntaxGenerator
 
 import ch.njol.skript.Skript
-import ch.njol.skript.aliases.Aliases
-import ch.njol.skript.aliases.AliasesProvider
-import ch.njol.skript.aliases.ItemData
-import ch.njol.skript.aliases.ItemType
-import ch.njol.skript.aliases.ScriptAliases
 import ch.njol.skript.classes.Changer
 import ch.njol.skript.classes.ClassInfo
 import ch.njol.skript.lang.function.Functions
 import ch.njol.skript.registrations.Classes
 import ch.njol.skript.registrations.EventValues
-import com.google.gson.GsonBuilder
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.plugin.java.JavaPlugin
@@ -30,8 +24,6 @@ import ch.njol.skript.doc.Keywords
 import ch.njol.skript.doc.RequiredPlugins
 import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.Events
-import ch.njol.skript.expressions.base.EventValueExpression
-import ch.njol.skript.expressions.base.PropertyExpression
 import ch.njol.skript.lang.Condition
 import ch.njol.skript.lang.DefaultExpression
 import ch.njol.skript.lang.Effect
@@ -39,19 +31,12 @@ import ch.njol.skript.lang.Expression
 import ch.njol.skript.lang.Section
 import ch.njol.skript.localization.Noun
 import ch.njol.skript.util.Contract
-import ch.njol.skript.util.StringMode
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonSerializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonPrimitive
-import com.google.gson.JsonSerializationContext
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonNull
-import com.google.gson.JsonObject
 import com.google.gson.TypeAdapter
 import jp.nlaocs.gson.RuntimeTypeAdapterFactory
+import jp.nlaocs.skriptSyntaxGenerator.generator.SyntaxDataGenerator
+import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
+import jp.nlaocs.skriptSyntaxGenerator.util.*
 import org.bukkit.Bukkit
-import org.bukkit.inventory.meta.ItemMeta
 import org.skriptlang.skript.lang.entry.EntryData
 
 import org.skriptlang.skript.lang.entry.EntryValidator
@@ -61,20 +46,14 @@ import org.skriptlang.skript.registration.DefaultSyntaxInfos
 import org.skriptlang.skript.common.function.Function
 import org.skriptlang.skript.common.function.Parameter
 import org.skriptlang.skript.lang.entry.ContainerEntryData
-import org.skriptlang.skript.lang.entry.EntryContainer
 import org.skriptlang.skript.lang.entry.KeyValueEntryData
 import org.skriptlang.skript.lang.entry.SectionEntryData
 import org.skriptlang.skript.lang.entry.util.ExpressionEntryData
 import org.skriptlang.skript.lang.entry.util.TriggerEntryData
-import java.lang.reflect.Modifier
 
-import java.nio.file.Paths
 import java.util.Locale
 import java.util.function.Supplier
 import java.util.regex.Pattern
-import java.lang.reflect.Type
-import kotlin.io.path.createDirectories
-import kotlin.io.path.writeText
 
 class SkriptSyntaxGenerator : JavaPlugin() {
 
@@ -109,89 +88,29 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 .registerSubtype(SectionEntryData::class.java)
 
 
-            val gson = GsonBuilder()
-                .registerTypeAdapter(
-                    Class::class.java,
-                    JsonSerializer<Class<*>> { src, _, _ ->
-                        JsonPrimitive(src.name)
-                    })
-                .registerTypeAdapter(Pattern::class.java, PatternAdapter())
-                .registerTypeHierarchyAdapter(EntryData::class.java, EntryDataSerializer())
-                //.registerTypeAdapterFactory(entryDataAdapter)
-                //.registerTypeAdapter(java.awt.Color::class.java, ColorAdapter())
-                .serializeNulls()
-                .disableHtmlEscaping()
-                .setPrettyPrinting()
-                .create()
+            val gson = GsonFactory.create()
 
-            val registry: SyntaxRegistry = Skript.instance().syntaxRegistry()
-
-            val events = registry.syntaxes(BukkitSyntaxInfos.Event.KEY)
-            val conditions = registry.syntaxes(SyntaxRegistry.CONDITION)
-            val effects = registry.syntaxes(SyntaxRegistry.EFFECT)
-            val expressions = registry.syntaxes(SyntaxRegistry.EXPRESSION)
             val types = Classes.getClassInfos()
             val functions = Functions.getFunctions()
-            val sections = registry.syntaxes(SyntaxRegistry.SECTION)
-            val structures = registry.syntaxes(SyntaxRegistry.STRUCTURE)
             // todo getAddonProviderは、引数にかかわらず同じproviderを返してくるので今はこうしている。将来的にaddonごとのproviderが返されるようになった場合変更する
             //val aliases = Aliases.getAddonProvider(Skript.getAddonInstance())
 
-            val eventDataList = mutableListOf<EventData>()
-            for (event in events) {
-                val eventData = EventData(event)
-                eventDataList.add(eventData)
-            }
-            FileUtils.writeToFile("events.json", gson.toJson(eventDataList))
-
-            val conditionDataList = mutableListOf<ConditionData>()
-            for (condition in conditions) {
-                val conditionData = ConditionData(condition)
-                conditionDataList.add(conditionData)
-            }
-            FileUtils.writeToFile("conditions.json", gson.toJson(conditionDataList))
-
-            val effectDataList = mutableListOf<EffectData>()
-            for (effect in effects) {
-                val effectData = EffectData(effect)
-                effectDataList.add(effectData)
-            }
-            FileUtils.writeToFile("effects.json", gson.toJson(effectDataList))
-
-            val expressionDataList = mutableListOf<ExpressionData>()
-            for (expression in expressions) {
-                val expressionData = ExpressionData(expression)
-                expressionDataList.add(expressionData)
-            }
-            FileUtils.writeToFile("expressions.json", gson.toJson(expressionDataList))
+            val syntaxDataGenerator = SyntaxDataGenerator()
+            syntaxDataGenerator.generate()
 
             val typeDataList = mutableListOf<TypeData>()
             for (type in types) {
                 val typeData = TypeData(type)
                 typeDataList.add(typeData)
             }
-            FileUtils.writeToFile("types.json", gson.toJson(typeDataList))
+            FileUtils.writeStringToFile("types.json", gson.toJson(typeDataList))
 
             val functionDataList = mutableListOf<FunctionData>()
             for (function in functions) {
                 val functionData = FunctionData(function)
                 functionDataList.add(functionData)
             }
-            FileUtils.writeToFile("functions.json", gson.toJson(functionDataList))
-
-            val sectionDataList = mutableListOf<SectionData>()
-            for (section in sections) {
-                val sectionData = SectionData(section)
-                sectionDataList.add(sectionData)
-            }
-            FileUtils.writeToFile("sections.json", gson.toJson(sectionDataList))
-
-            val structureDataList = mutableListOf<StructureData>()
-            for (structure in structures) {
-                val structureData = StructureData(structure)
-                structureDataList.add(structureData)
-            }
-            FileUtils.writeToFile("structures.json", gson.toJson(structureDataList))
+            FileUtils.writeStringToFile("functions.json", gson.toJson(functionDataList))
 
             /*val aliasesData = mutableListOf<AliasesData>()
             if (aliases != null) {
@@ -210,57 +129,6 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
     }
 }
 
-class EntryDataSerializer : JsonSerializer<EntryData<*>> {
-
-    override fun serialize(src: EntryData<*>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
-        val obj = JsonObject()
-
-        obj.addProperty("key", src.key)
-        obj.add("defaultValue", context.serialize(src.defaultValue))
-        obj.addProperty("optional", src.isOptional)
-        obj.addProperty("multiple", src.supportsMultiple())
-        obj.addProperty("entryDataClass", src::class.simpleName)
-
-        when (src) {
-            is LiteralEntryData<*> -> {}
-            is VariableStringEntryData -> {}
-            is ExpressionEntryData<*> -> {}
-            is TriggerEntryData -> {}
-            is ContainerEntryData -> {}
-            is KeyValueEntryData -> {}
-            is SectionEntryData -> {}
-            /*is LiteralEntryData<*> -> {
-                try {
-                    val typeField = LiteralEntryData::class.java.getDeclaredField("type")
-                    typeField.isAccessible = true
-                    val type = typeField.get(src) as Class<*>
-                    obj.addProperty("type", type.name)
-                } catch (e: Exception) {
-                    obj.add("type", JsonNull.INSTANCE)
-                }
-            }
-
-            is VariableStringEntryData -> {
-                try {
-                    val stringModeField = VariableStringEntryData::class.java.getDeclaredField("stringMode")
-                    stringModeField.isAccessible = true
-                    val stringMode = stringModeField.get(src) as StringMode
-                    obj.addProperty("stringMode", stringMode.name)
-                } catch (e: Exception) {
-                    obj.add("stringMode", JsonNull.INSTANCE)
-                }
-            }*/
-
-            /*is KeyValueEntryData -> {
-
-            }*/
-            // SectionEntryData の場合は単純に型名だけを記録
-        }
-
-        return obj
-    }
-} // todo!!!!!
-
 class ColorAdapter : TypeAdapter<java.awt.Color>() {
     override fun write(out: com.google.gson.stream.JsonWriter, value: java.awt.Color) {
         out.value(String.format("#%02x%02x%02x", value.red, value.green, value.blue))
@@ -270,96 +138,6 @@ class ColorAdapter : TypeAdapter<java.awt.Color>() {
         val colorStr = `in`.nextString()
         return java.awt.Color.decode(colorStr)
     }
-}
-
-object FileUtils {
-    @JvmStatic
-    fun writeToFile(fileName: String, content: String) {
-        val dirPath = Paths.get("plugins", "SkriptSyntaxGenerator")
-        val filePath = dirPath.resolve(fileName)
-
-        dirPath.createDirectories()
-        filePath.writeText(content)
-    }
-}
-
-class PatternAdapter : JsonSerializer<Pattern>, JsonDeserializer<Pattern> {
-
-    override fun serialize(
-        src: Pattern,
-        typeOfSrc: Type,
-        context: JsonSerializationContext
-    ): JsonElement {
-        return JsonPrimitive(src.pattern())
-    }
-
-    override fun deserialize(
-        json: JsonElement,
-        typeOfT: Type,
-        context: JsonDeserializationContext
-    ): Pattern {
-        return Pattern.compile(json.asString)
-    }
-}
-
-inline fun <reified T : Annotation> Class<*>.anno(): T? =
-    getAnnotation(T::class.java)
-
-inline fun <reified T : Annotation> Class<*>.hasAnno(): Boolean =
-    isAnnotationPresent(T::class.java)
-
-inline fun <reified T : Annotation, reified V> Class<*>.annoValue(method: String = "value"): V? =
-    anno<T>()?.let { ann ->
-        try {
-            T::class.java.getMethod(method).invoke(ann) as? V
-        } catch (e: ReflectiveOperationException) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-inline fun <reified T : Annotation, reified V> Class<*>.annoValues(method: String = "value"): List<V>? =
-    annoValue<T, Array<V>>(method)?.toList()
-
-fun Class<*>.getTypeStr(): String = when {
-    isAnnotation -> "Annotation"
-    isEnum -> "Enum"
-    isInterface -> "Interface"
-    isArray -> "Array"
-    isPrimitive -> "Primitive"
-    isRecord -> "Record"
-    isSealed -> "Sealed"
-    isSynthetic -> "Synthetic"
-    isMemberClass -> "MemberClass"
-    isLocalClass -> "LocalClass"
-    isAnonymousClass -> "AnonymousClass"
-    else -> "Class"
-}
-
-fun Class<*>.toStringListSafe(): List<String> {
-    if (!isEnum) return emptyList()
-    return (enumConstants as Array<Enum<*>>).map { constant ->
-        constant.name
-            .lowercase(Locale.ENGLISH)
-            .replace('_', ' ')
-    }
-}
-
-// listの中のstringをtrimして空文字のものを除外するやつ、nullのものも除外、すべて空文字の場合nullを返す
-fun List<String?>?.cleaning(): List<String?>? {
-    if (this == null) return null
-    val cleaned = this.mapNotNull { it?.trim()?.takeIf { it.isNotEmpty() } }
-    return cleaned.ifEmpty { null }
-}
-
-fun Priority?.toPriorityStr(): String? = when (this) {
-    null -> null
-    SyntaxInfo.SIMPLE -> "SyntaxInfos.SIMPLE" // = ExpressionType.SIMPLE
-    SyntaxInfo.COMBINED -> "SyntaxInfos.COMBINED" // = ExpressionType.COMBINED
-    SyntaxInfo.PATTERN_MATCHES_EVERYTHING -> "SyntaxInfos.PATTERN_MATCHES_EVERYTHING" // = ExpressionType.PATTERN_MATCHES_EVERYTHING
-    EventValueExpression.DEFAULT_PRIORITY -> "EventValueExpression.DEFAULT_PRIORITY" // = ExpressionType.EVENT
-    PropertyExpression.DEFAULT_PRIORITY -> "PropertyExpression.DEFAULT_PRIORITY" // = ExpressionType.PROPERTY
-    else -> "CUSTOM"
 }
 
 open class Common {
@@ -475,103 +253,6 @@ open class Common {
             priority = s.priority(),
             patterns = s.patterns().toList()
         )
-    }
-}
-
-class EventData : Common {
-    var referenceEvents: List<Class<out Event>>? = null
-    var eventValues: List<EventValues.EventValueInfo<*, *>> = emptyList()
-    var cancellable: Boolean = false
-    var hasOnPrefix: Boolean = false
-
-    constructor(s: BukkitSyntaxInfos.Event<*>) : super(s) {
-
-        this.referenceEvents = s.events().toList()
-        val allEventValues = EventValues.getPerEventEventValues()
-        val eventValueList = mutableListOf<EventValues.EventValueInfo<*, *>>()
-        for ((eventClass, info) in allEventValues.entries()) {
-            for (refEvent in referenceEvents ?: emptyList()) {
-                if (eventClass.isAssignableFrom(refEvent)) {
-                    eventValueList.add(info)
-                }
-            }
-
-        }
-        this.eventValues = eventValueList
-
-        this.cancellable = true
-        for (it in referenceEvents ?: emptyList()) {
-            if (!Cancellable::class.java.isAssignableFrom(it)) {
-                this.cancellable = false
-                break
-            }
-        }
-
-        this.hasOnPrefix = s.name().startsWith("On ")
-    }
-}
-
-class ConditionData : Common {
-    constructor(s: SyntaxInfo<out Condition>) : super(s)
-}
-
-class EffectData : Common {
-    constructor(s: SyntaxInfo<out Effect>) : super(s)
-}
-
-class ExpressionData : Common {
-    var returnType: Class<*>? = null
-
-    var returnTypeMultiplicity: Multiplicity? = null
-    var acceptedChangers: Map<Changer.ChangeMode, List<Class<*>>>? = null
-
-    constructor(s: DefaultSyntaxInfos.Expression<*, *>) : super(s) {
-        this.returnType = s.returnType()
-        var instance: Expression<*>? = s.instance()
-        if (instance == null) {
-            /*Bukkit.getLogger().warning(
-                "Failed to create instance of ${s.type().name}. acceptedChangers will be null."
-            )*/
-            this.acceptedChangers = null
-            return
-        }
-
-        this.acceptedChangers = try {
-            instance.acceptedChangeModes?.mapValues { (_, array) -> array.toList() }
-        } catch (e: Throwable) {
-            /*Bukkit.getLogger().warning(
-                "Failed to read acceptedChangeModes for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
-            )*/
-            null
-        }
-
-        val multiplicity = try {
-            instance.isSingle
-        } catch (e: Throwable) {
-            /*Bukkit.getLogger().warning(
-                "Failed to read isSingle for ${s.type().name}: ${e.javaClass.simpleName}: ${e.message}"
-            )*/
-            null
-        }
-        this.returnTypeMultiplicity = Multiplicity.fromBoolean(multiplicity)
-    }
-
-    enum class Multiplicity {
-        SINGLE, MULTIPLE, BOTH;
-
-        fun toBoolean(): Boolean? = when (this) {
-            SINGLE -> true
-            MULTIPLE -> false
-            BOTH -> null
-        }
-
-        companion object {
-            fun fromBoolean(value: Boolean?): Multiplicity = when (value) {
-                true -> SINGLE
-                false -> MULTIPLE
-                null -> BOTH
-            }
-        }
     }
 }
 
@@ -854,20 +535,6 @@ class FunctionData {
     }
 }
 
-class SectionData : Common {
-    constructor(s: SyntaxInfo<out Section>) : super(s)
-}
-
-class StructureData : Common {
-    var entryValidator: EntryValidator? = null
-    var nodeType: DefaultSyntaxInfos.Structure.NodeType? = null
-
-    constructor(s: DefaultSyntaxInfos.Structure<*>) : super(s) {
-        this.entryValidator = s.entryValidator()
-        this.nodeType = s.nodeType()
-    }
-}
-
 /*
 class AliasesData {
     /*var name: String? = null
@@ -937,3 +604,4 @@ class AliasesData {
 // todo 要素ゼロのListはnullにする
 // todo https://github.com/SkriptLang/Skript/blob/eae1f09622cd39b44b98527e2915476029453e32/src/main/java/org/skriptlang/skript/lang/arithmetic/Arithmetics.java#L16
 // todo 過去バージョンのためalias
+// todo コンバーターも保持
