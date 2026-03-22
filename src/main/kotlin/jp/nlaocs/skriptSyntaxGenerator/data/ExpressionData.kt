@@ -1,24 +1,39 @@
 package jp.nlaocs.skriptSyntaxGenerator.data
 
 import ch.njol.skript.classes.Changer
+import ch.njol.skript.doc.Name
 import jp.nlaocs.skriptSyntaxGenerator.data.common.CommonSyntaxData
+import jp.nlaocs.skriptSyntaxGenerator.util.annoValue
+import org.bukkit.Bukkit
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
 class ExpressionData(s: DefaultSyntaxInfos.Expression<*, *>) : CommonSyntaxData(s) {
     val returnType: Class<*>? = s.returnType() // todo nullableにすべきかを調べる
-    val returnTypeMultiplicity: Multiplicity = Multiplicity.fromBoolean(s.instance().isSingle)
-    val acceptedChangers: Map<Changer.ChangeMode, List<Class<*>>>? // todo 直接保持しているが見直すべきかも
 
-    init {
-        val changerMap = s.instance().acceptedChangeModes.mapValues { (_, array) -> array.toList() }
-        acceptedChangers = if (changerMap.isEmpty()) {
-            null
-        } else {
-            changerMap.entries.associate { entry ->
-                entry.key to entry.value.toList()
-            }
-        }
-    }
+    val returnTypeMultiplicity: Multiplicity? = try {
+        Multiplicity.fromBoolean(s.instance().isSingle)
+    } catch (e: Exception) {
+        Bukkit.getLogger().warning(
+            "Failed to retrieve multiplicity for expression: ${
+                s.type().annoValue<Name, String>()
+            }. Falling back to BOTH. Error: ${e.message}"
+        )
+        null
+    } // todo 動的に変動する可能性がある...?
+
+    val acceptedChangers: Map<Changer.ChangeMode, List<Class<*>>>? = try {
+        val instance = s.instance()
+        val map = instance.acceptedChangeModes
+        if (map.isEmpty()) null
+        else map.mapValues { it.value.toList() }
+    } catch (e: Exception) {
+        Bukkit.getLogger().warning(
+            "Failed to retrieve accepted changers for expression: ${
+                s.type().annoValue<Name, String>()
+            }. Setting acceptedChangers to null. Error: ${e.message}"
+        )
+        null
+    } // todo 直接保持しているが見直すべきかも
 
     enum class Multiplicity {
         SINGLE, MULTIPLE, BOTH;
