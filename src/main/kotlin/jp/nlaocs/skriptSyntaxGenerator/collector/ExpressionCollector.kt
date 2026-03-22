@@ -1,0 +1,12 @@
+package jp.nlaocs.skriptSyntaxGenerator.collector
+
+import jp.nlaocs.skriptSyntaxGenerator.data.ExpressionData
+import org.skriptlang.skript.registration.SyntaxRegistry
+
+class ExpressionCollector(private val registry: SyntaxRegistry) : SyntaxCollector<ExpressionData> {
+    override val fileName = "expressions.json"
+
+    override fun collect(): List<ExpressionData> =
+        registry.syntaxes(SyntaxRegistry.EXPRESSION)
+            .map { ExpressionData(it) }
+}
