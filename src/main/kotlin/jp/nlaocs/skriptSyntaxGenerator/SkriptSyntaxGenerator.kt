@@ -1,17 +1,11 @@
 package jp.nlaocs.skriptSyntaxGenerator
 
 import ch.njol.skript.Skript
-import ch.njol.skript.aliases.Aliases
-import ch.njol.skript.aliases.AliasesProvider
-import ch.njol.skript.aliases.ItemData
-import ch.njol.skript.aliases.ItemType
-import ch.njol.skript.aliases.ScriptAliases
 import ch.njol.skript.classes.Changer
 import ch.njol.skript.classes.ClassInfo
 import ch.njol.skript.lang.function.Functions
 import ch.njol.skript.registrations.Classes
 import ch.njol.skript.registrations.EventValues
-import com.google.gson.GsonBuilder
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.plugin.java.JavaPlugin
@@ -30,8 +24,6 @@ import ch.njol.skript.doc.Keywords
 import ch.njol.skript.doc.RequiredPlugins
 import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.Events
-import ch.njol.skript.expressions.base.EventValueExpression
-import ch.njol.skript.expressions.base.PropertyExpression
 import ch.njol.skript.lang.Condition
 import ch.njol.skript.lang.DefaultExpression
 import ch.njol.skript.lang.Effect
@@ -39,21 +31,11 @@ import ch.njol.skript.lang.Expression
 import ch.njol.skript.lang.Section
 import ch.njol.skript.localization.Noun
 import ch.njol.skript.util.Contract
-import ch.njol.skript.util.StringMode
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonSerializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonPrimitive
-import com.google.gson.JsonSerializationContext
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonNull
-import com.google.gson.JsonObject
 import com.google.gson.TypeAdapter
 import jp.nlaocs.gson.RuntimeTypeAdapterFactory
 import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
 import jp.nlaocs.skriptSyntaxGenerator.util.*
 import org.bukkit.Bukkit
-import org.bukkit.inventory.meta.ItemMeta
 import org.skriptlang.skript.lang.entry.EntryData
 
 import org.skriptlang.skript.lang.entry.EntryValidator
@@ -63,20 +45,14 @@ import org.skriptlang.skript.registration.DefaultSyntaxInfos
 import org.skriptlang.skript.common.function.Function
 import org.skriptlang.skript.common.function.Parameter
 import org.skriptlang.skript.lang.entry.ContainerEntryData
-import org.skriptlang.skript.lang.entry.EntryContainer
 import org.skriptlang.skript.lang.entry.KeyValueEntryData
 import org.skriptlang.skript.lang.entry.SectionEntryData
 import org.skriptlang.skript.lang.entry.util.ExpressionEntryData
 import org.skriptlang.skript.lang.entry.util.TriggerEntryData
-import java.lang.reflect.Modifier
 
-import java.nio.file.Paths
 import java.util.Locale
 import java.util.function.Supplier
 import java.util.regex.Pattern
-import java.lang.reflect.Type
-import kotlin.io.path.createDirectories
-import kotlin.io.path.writeText
 
 class SkriptSyntaxGenerator : JavaPlugin() {
 
