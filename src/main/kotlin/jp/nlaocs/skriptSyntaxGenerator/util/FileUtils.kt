@@ -6,7 +6,7 @@ import kotlin.io.path.writeText
 
 object FileUtils {
     @JvmStatic
-    fun writeToFile(fileName: String, content: String) {
+    fun writeStringToFile(fileName: String, content: String) {
         val dirPath = Paths.get("plugins", "SkriptSyntaxGenerator")
         val filePath = dirPath.resolve(fileName)
 

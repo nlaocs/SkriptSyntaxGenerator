@@ -131,56 +131,56 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 val eventData = EventData(event)
                 eventDataList.add(eventData)
             }
-            FileUtils.writeToFile("events.json", gson.toJson(eventDataList))
+            FileUtils.writeStringToFile("events.json", gson.toJson(eventDataList))
 
             val conditionDataList = mutableListOf<ConditionData>()
             for (condition in conditions) {
                 val conditionData = ConditionData(condition)
                 conditionDataList.add(conditionData)
             }
-            FileUtils.writeToFile("conditions.json", gson.toJson(conditionDataList))
+            FileUtils.writeStringToFile("conditions.json", gson.toJson(conditionDataList))
 
             val effectDataList = mutableListOf<EffectData>()
             for (effect in effects) {
                 val effectData = EffectData(effect)
                 effectDataList.add(effectData)
             }
-            FileUtils.writeToFile("effects.json", gson.toJson(effectDataList))
+            FileUtils.writeStringToFile("effects.json", gson.toJson(effectDataList))
 
             val expressionDataList = mutableListOf<ExpressionData>()
             for (expression in expressions) {
                 val expressionData = ExpressionData(expression)
                 expressionDataList.add(expressionData)
             }
-            FileUtils.writeToFile("expressions.json", gson.toJson(expressionDataList))
+            FileUtils.writeStringToFile("expressions.json", gson.toJson(expressionDataList))
 
             val typeDataList = mutableListOf<TypeData>()
             for (type in types) {
                 val typeData = TypeData(type)
                 typeDataList.add(typeData)
             }
-            FileUtils.writeToFile("types.json", gson.toJson(typeDataList))
+            FileUtils.writeStringToFile("types.json", gson.toJson(typeDataList))
 
             val functionDataList = mutableListOf<FunctionData>()
             for (function in functions) {
                 val functionData = FunctionData(function)
                 functionDataList.add(functionData)
             }
-            FileUtils.writeToFile("functions.json", gson.toJson(functionDataList))
+            FileUtils.writeStringToFile("functions.json", gson.toJson(functionDataList))
 
             val sectionDataList = mutableListOf<SectionData>()
             for (section in sections) {
                 val sectionData = SectionData(section)
                 sectionDataList.add(sectionData)
             }
-            FileUtils.writeToFile("sections.json", gson.toJson(sectionDataList))
+            FileUtils.writeStringToFile("sections.json", gson.toJson(sectionDataList))
 
             val structureDataList = mutableListOf<StructureData>()
             for (structure in structures) {
                 val structureData = StructureData(structure)
                 structureDataList.add(structureData)
             }
-            FileUtils.writeToFile("structures.json", gson.toJson(structureDataList))
+            FileUtils.writeStringToFile("structures.json", gson.toJson(structureDataList))
 
             /*val aliasesData = mutableListOf<AliasesData>()
             if (aliases != null) {
