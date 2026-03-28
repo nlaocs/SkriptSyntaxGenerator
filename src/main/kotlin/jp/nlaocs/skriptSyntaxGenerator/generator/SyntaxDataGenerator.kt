@@ -8,6 +8,7 @@ import jp.nlaocs.skriptSyntaxGenerator.collector.ExpressionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.SectionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.StructureCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.SyntaxCollector
+import jp.nlaocs.skriptSyntaxGenerator.collector.TypeCollector
 import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
 import jp.nlaocs.skriptSyntaxGenerator.util.FileUtils
 
@@ -20,7 +21,7 @@ class SyntaxDataGenerator {
         ConditionCollector(registry),
         EffectCollector(registry),
         ExpressionCollector(registry),
-        // type
+        TypeCollector(),
         // function
         SectionCollector(registry),
         StructureCollector(registry)

@@ -90,20 +90,12 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
 
             val gson = GsonFactory.create()
 
-            val types = Classes.getClassInfos()
             val functions = Functions.getFunctions()
             // todo getAddonProviderは、引数にかかわらず同じproviderを返してくるので今はこうしている。将来的にaddonごとのproviderが返されるようになった場合変更する
             //val aliases = Aliases.getAddonProvider(Skript.getAddonInstance())
 
             val syntaxDataGenerator = SyntaxDataGenerator()
             syntaxDataGenerator.generate()
-
-            val typeDataList = mutableListOf<TypeData>()
-            for (type in types) {
-                val typeData = TypeData(type)
-                typeDataList.add(typeData)
-            }
-            FileUtils.writeStringToFile("types.json", gson.toJson(typeDataList))
 
             val functionDataList = mutableListOf<FunctionData>()
             for (function in functions) {
