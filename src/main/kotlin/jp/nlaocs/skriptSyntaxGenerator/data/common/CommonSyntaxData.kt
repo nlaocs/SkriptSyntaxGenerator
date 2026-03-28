@@ -18,15 +18,15 @@ import org.skriptlang.skript.util.Priority
 import java.util.Locale
 
 open class CommonSyntaxData(
-    val name: String?,
+    override val name: String?,
     val id: String?,
     val documentationId: String?,
     val elementClass: Class<*>,
-    val since: List<String>?,
-    val description: List<String>?,
-    var examples: List<String>?,
-    val keywords: List<String>?,
-    val requiredPlugins: List<String>?,
+    override val since: List<String>?,
+    override val description: List<String>?,
+    override var examples: List<String>?,
+    override val keywords: List<String>?,
+    override val requiredPlugins: List<String>?,
     val noDoc: Boolean,
     val events: List<String>?, // todo 特定のイベントのみで使用可能にするためのものだが、CommonにあるとEventにもこのプロパティがある。いるのか？
     val deprecated: Boolean?,
@@ -34,7 +34,7 @@ open class CommonSyntaxData(
     val priority: Priority? = null,
     var patterns: List<String>,
     var addon: AddonInfo? = null,
-) {
+) : Documentable {
     data class AddonInfo(
         val name: String,
         val version: String?,
