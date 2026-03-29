@@ -38,7 +38,7 @@ open class CommonSyntaxData(
     data class AddonInfo(
         val name: String,
         val version: String?,
-    )
+    ) // todo 分ける
 
     constructor(s: BukkitSyntaxInfos.Event<*>) : this(
         name = s.name(),

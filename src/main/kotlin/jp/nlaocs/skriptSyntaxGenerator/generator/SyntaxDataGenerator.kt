@@ -5,6 +5,7 @@ import jp.nlaocs.skriptSyntaxGenerator.collector.ConditionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.EffectCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.EventCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ExpressionCollector
+import jp.nlaocs.skriptSyntaxGenerator.collector.FunctionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.SectionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.StructureCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.SyntaxCollector
@@ -22,7 +23,7 @@ class SyntaxDataGenerator {
         EffectCollector(registry),
         ExpressionCollector(registry),
         TypeCollector(),
-        // function
+        FunctionCollector(),
         SectionCollector(registry),
         StructureCollector(registry)
     )
