@@ -6,5 +6,5 @@ interface Documentable {
     val since: List<String>?
     val examples: List<String>?
     val keywords: List<String>?
-    val requiredPlugins: List<String>?
+    val requires: List<String>?
 }

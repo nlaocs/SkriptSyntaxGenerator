@@ -9,7 +9,7 @@ class FunctionData(s: Function<*>) : Documentable {
     override val since: List<String>?
     override val examples: List<String>?
     override val keywords: List<String>?
-    override val requiredPlugins: List<String>?
+    override val requires: List<String>?
     val returnType: Class<*>? = s.type()
     val returnTypeIsSingle: Boolean = s.isSingle // Expressionと違って、true/falseしか来ない
 
@@ -20,7 +20,7 @@ class FunctionData(s: Function<*>) : Documentable {
                 description = s.description()
                 examples = s.examples()
                 keywords = s.keywords()
-                requiredPlugins = s.requires()
+                requires = s.requires()
             }
 
             is ch.njol.skript.lang.function.SimpleJavaFunction<*> -> {
@@ -28,7 +28,7 @@ class FunctionData(s: Function<*>) : Documentable {
                 description = s.description()
                 examples = s.examples()
                 keywords = s.keywords()
-                requiredPlugins = s.requires()
+                requires = s.requires()
             }
 
             is ch.njol.skript.lang.function.JavaFunction<*> -> {
@@ -36,7 +36,7 @@ class FunctionData(s: Function<*>) : Documentable {
                 description = s.description()
                 examples = s.examples()
                 keywords = s.keywords()
-                requiredPlugins = s.requires()
+                requires = s.requires()
             }
 
             else -> error("unreachable")

@@ -17,7 +17,7 @@ class TypeData(s: ClassInfo<*>) : Documentable {
     override val since: List<String>? = s.since?.let { listOf(it) }
     override val examples: List<String>? = s.examples?.filterNotNull()?.toList()
     override val keywords: List<String>? = null // ClassInfoにkeywordsは実装されていない
-    override val requiredPlugins: List<String>? = s.requiredPlugins?.filterNotNull()?.toList()
+    override val requires: List<String>? = s.requiredPlugins?.filterNotNull()?.toList()
 
     val changer: Map<Changer.ChangeMode, List<Class<*>>>? =
         Changer.ChangeMode.entries
