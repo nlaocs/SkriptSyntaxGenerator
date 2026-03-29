@@ -23,14 +23,7 @@ class FunctionData(s: Function<*>) : Documentable {
                 requires = s.requires()
             }
 
-            is ch.njol.skript.lang.function.SimpleJavaFunction<*> -> {
-                since = s.since()
-                description = s.description()
-                examples = s.examples()
-                keywords = s.keywords()
-                requires = s.requires()
-            }
-
+            // JavaFunction & SimpleJavaFunction
             is ch.njol.skript.lang.function.JavaFunction<*> -> {
                 since = s.since()
                 description = s.description()
