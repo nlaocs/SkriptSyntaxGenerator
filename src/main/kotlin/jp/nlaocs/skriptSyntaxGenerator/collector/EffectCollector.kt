@@ -3,7 +3,7 @@ package jp.nlaocs.skriptSyntaxGenerator.collector
 import jp.nlaocs.skriptSyntaxGenerator.data.EffectData
 import org.skriptlang.skript.registration.SyntaxRegistry
 
-class EffectCollector(private val registry: SyntaxRegistry) : SyntaxCollector<EffectData> {
+class EffectCollector(private val registry: SyntaxRegistry) : SyntaxCollector<List<EffectData>> {
     override val fileName = "effects.json"
 
     override fun collect(): List<EffectData> =
