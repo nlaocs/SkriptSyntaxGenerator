@@ -12,7 +12,7 @@ object GsonFactory {
         .registerTypeAdapter(
             Class::class.java,
             JsonSerializer<Class<*>> { src, _, _ ->
-                JsonPrimitive(src.name)
+                JsonPrimitive(src.toString())
             })
         .registerTypeAdapter(Pattern::class.java, PatternAdapter())
         .registerTypeHierarchyAdapter(EntryData::class.java, EntryDataSerializer())
