@@ -22,6 +22,7 @@ open class CommonSyntaxData(
     val id: String?,
     val documentationId: String?,
     val elementClass: Class<*>,
+    val superClass: Class<*> = elementClass.superclass,
     override val since: List<String>?,
     override val description: List<String>?,
     override var examples: List<String>?,
