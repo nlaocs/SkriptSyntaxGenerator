@@ -1,6 +1,7 @@
 package jp.nlaocs.skriptSyntaxGenerator.generator
 
 import ch.njol.skript.Skript
+import jp.nlaocs.skriptSyntaxGenerator.collector.ArithmeticCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ConditionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.EffectCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.EventCollector
@@ -25,7 +26,8 @@ class SyntaxDataGenerator {
         TypeCollector(),
         FunctionCollector(),
         SectionCollector(registry),
-        StructureCollector(registry)
+        StructureCollector(registry),
+        ArithmeticCollector(),
     )
 
     fun generate() {
