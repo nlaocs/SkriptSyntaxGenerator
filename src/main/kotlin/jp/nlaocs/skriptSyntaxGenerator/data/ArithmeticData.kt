@@ -21,6 +21,7 @@ class ArithmeticData(
                 Arithmetics.getDifferenceInfo(info.c)?.let { info.c to it }
             }
             .toMap()
+    // DefaultValue..?
 
     data class OperatorData(
         val sign: String,

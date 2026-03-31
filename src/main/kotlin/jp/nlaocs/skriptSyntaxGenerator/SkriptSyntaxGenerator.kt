@@ -586,6 +586,5 @@ class AliasesData {
 // todo typeのbeforeやafter、またaliasesの定義も取得する
 // todo structuresのentryValidatorのentryDataのTypeなど、常に追加する
 // todo 要素ゼロのListはnullにする
-// todo https://github.com/SkriptLang/Skript/blob/eae1f09622cd39b44b98527e2915476029453e32/src/main/java/org/skriptlang/skript/lang/arithmetic/Arithmetics.java#L16
 // todo 過去バージョンのためalias
 // todo コンバーターも保持
