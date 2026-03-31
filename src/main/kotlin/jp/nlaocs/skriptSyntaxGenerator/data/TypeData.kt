@@ -38,7 +38,7 @@ class TypeData(s: ClassInfo<*>) : Documentable {
 
     val defaultExpressionClass: Class<out DefaultExpression<*>>? = s.defaultExpression?.javaClass
 
-    val supplierClass: Class<out Supplier<out Iterator<*>>>? = s.supplier?.javaClass
+    val supplierClass: Class<out Supplier<out Iterator<*>>>? = s.supplier?.javaClass // いらないかも、殆どがlambda
     // val parserClass: Class<out Parser<*>>? = s.parser?.javaClass
     // val serializerClass: Class<out Serializer<*>>? = s.serializer?.javaClass
     // todo before/after
