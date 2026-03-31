@@ -2,6 +2,7 @@ package jp.nlaocs.skriptSyntaxGenerator.generator
 
 import ch.njol.skript.Skript
 import jp.nlaocs.skriptSyntaxGenerator.collector.ArithmeticCollector
+import jp.nlaocs.skriptSyntaxGenerator.collector.ComparatorCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ConditionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ConverterCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.EffectCollector
@@ -30,6 +31,7 @@ class SyntaxDataGenerator {
         StructureCollector(registry),
         ArithmeticCollector(),
         ConverterCollector(),
+        ComparatorCollector(),
     )
 
     fun generate() {

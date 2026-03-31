@@ -588,3 +588,4 @@ class AliasesData {
 // todo 要素ゼロのListはnullにする
 // todo 過去バージョンのためalias
 // todo コンバーターも保持
+// todo tagというものがある、用途まだ不明
