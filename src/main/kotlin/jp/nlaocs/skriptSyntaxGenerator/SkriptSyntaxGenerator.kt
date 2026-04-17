@@ -34,6 +34,7 @@ import ch.njol.skript.util.Contract
 import com.google.gson.TypeAdapter
 import jp.nlaocs.gson.RuntimeTypeAdapterFactory
 import jp.nlaocs.skriptSyntaxGenerator.generator.SyntaxDataGenerator
+import jp.nlaocs.skriptSyntaxGenerator.hook.HookManager
 import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
 import jp.nlaocs.skriptSyntaxGenerator.util.*
 import org.bukkit.Bukkit
@@ -56,6 +57,11 @@ import java.util.function.Supplier
 import java.util.regex.Pattern
 
 class SkriptSyntaxGenerator : JavaPlugin() {
+
+    override fun onLoad() {
+        HookManager.getInstance().setLogger(logger)
+        HookManager.getInstance().init()
+    }
 
     override fun onEnable() {
         this.getCommand("skgen")?.setExecutor(SkriptSyntaxCommandExecutor())

@@ -21,6 +21,8 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("com.github.SkriptLang:Skript:2.14.2")
     implementation("com.google.code.gson:gson:2.13.2")
+    implementation("net.bytebuddy:byte-buddy:1.14.10")
+    implementation("net.bytebuddy:byte-buddy-agent:1.14.10")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 }
@@ -34,6 +36,7 @@ tasks {
         javaLauncher = project.javaToolchains.launcherFor {
             languageVersion.set(JavaLanguageVersion.of(21))
         }
+        jvmArgs("-XX:+EnableDynamicAgentLoading")
         args("--port", "25595")
         downloadPlugins {
             //https://github.com/SkriptLang/Skript

@@ -1,10 +1,13 @@
 package jp.nlaocs.skriptSyntaxGenerator.data
 
 import ch.njol.skript.lang.function.Function
+import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
+import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Documentable
+import org.bukkit.plugin.java.JavaPlugin
 import org.skriptlang.skript.common.function.Parameter
 
-class FunctionData(s: Function<*>) : Documentable {
+class FunctionData(s: Function<*>) : Documentable, Addon {
     override val name: String? = s.name
     override val description: List<String>?
     override val since: List<String>?
@@ -14,6 +17,8 @@ class FunctionData(s: Function<*>) : Documentable {
     val returnType: Class<*>? = s.type()
     val returnTypeIsSingle: Boolean = s.isSingle // Expressionと違って、true/falseしか来ない
     val parameters: List<ParameterInfo> = s.signature.parameters().all().map { ParameterInfo(it) }.toList()
+
+    override val addon: AddonInfo
 
     data class ParameterInfo(
         val name: String,
@@ -66,6 +71,13 @@ class FunctionData(s: Function<*>) : Documentable {
                 examples = s.examples()
                 keywords = s.keywords()
                 requires = s.requires()
+
+                addon = JavaPlugin.getProvidingPlugin(s.source().source()).let {
+                    AddonInfo(
+                        name = it.name,
+                        version = it.description.version
+                    )
+                }
             }
 
             // JavaFunction & SimpleJavaFunction
@@ -75,6 +87,13 @@ class FunctionData(s: Function<*>) : Documentable {
                 examples = s.examples()
                 keywords = s.keywords()
                 requires = s.requires()
+
+                addon = JavaPlugin.getProvidingPlugin(s.javaClass).let {
+                    AddonInfo(
+                        name = it.name,
+                        version = it.description.version
+                    )
+                }
             }
 
             else -> error("unreachable")

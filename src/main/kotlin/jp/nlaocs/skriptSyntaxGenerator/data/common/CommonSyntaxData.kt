@@ -34,12 +34,8 @@ open class CommonSyntaxData(
     val priorityStr: String? = null, // todo Enum
     val priority: Priority? = null,
     var patterns: List<String>,
-    var addon: AddonInfo? = null,
-) : Documentable {
-    data class AddonInfo(
-        val name: String,
-        val version: String?,
-    ) // todo 分ける
+    override val addon: AddonInfo
+) : Documentable, Addon {
 
     constructor(s: BukkitSyntaxInfos.Event<*>) : this(
         name = s.name(),
