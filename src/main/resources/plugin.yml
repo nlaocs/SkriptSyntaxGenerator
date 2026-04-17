@@ -3,9 +3,9 @@ version: '1.0'
 main: jp.nlaocs.skriptSyntaxGenerator.SkriptSyntaxGenerator
 api-version: '1.21'
 authors: [ nlaocs ]
-depend: [ Skript]
+loadbefore: [ Skript ]
 commands:
-    skgen:
-        description: Skript Syntax Generator Main Command
-        usage: /skgen
-        permission: skgen.use
+  skgen:
+    description: Skript Syntax Generator Main Command
+    usage: /skgen
+    permission: skgen.use
