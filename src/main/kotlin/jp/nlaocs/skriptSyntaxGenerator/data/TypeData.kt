@@ -7,6 +7,7 @@ import ch.njol.skript.localization.Noun
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Documentable
+import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisteredClassInfoCollector
 import jp.nlaocs.skriptSyntaxGenerator.util.cleaning
 import jp.nlaocs.skriptSyntaxGenerator.util.getTypeStr
 import jp.nlaocs.skriptSyntaxGenerator.util.toStringListSafe
@@ -46,7 +47,13 @@ class TypeData(s: ClassInfo<*>) : Documentable, Addon {
     val defaultExpressionClass: Class<out DefaultExpression<*>>? = s.defaultExpression?.javaClass
 
     val supplierClass: Class<out Supplier<out Iterator<*>>>? = s.supplier?.javaClass // いらないかも、殆どがlambda
+
     // val parserClass: Class<out Parser<*>>? = s.parser?.javaClass
     // val serializerClass: Class<out Serializer<*>>? = s.serializer?.javaClass
-    // todo before/after
+    @Transient
+    val snapshot = RegisteredClassInfoCollector.getInstance()
+        .snapshotMap()[this.codeName]
+
+    val before = snapshot?.before?.toList()?.cleaning()
+    val after = snapshot?.after?.toList()?.cleaning()
 }
