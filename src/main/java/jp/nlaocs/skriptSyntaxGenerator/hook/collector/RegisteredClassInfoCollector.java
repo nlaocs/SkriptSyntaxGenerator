@@ -32,7 +32,7 @@ public final class RegisteredClassInfoCollector {
     }
 
     public List<Snapshot> snapshot() {
-        return Collections.unmodifiableList(new ArrayList<>(infos.values()));
+        return List.copyOf(infos.values());
     }
 
     public Map<String, Snapshot> snapshotMap() {
