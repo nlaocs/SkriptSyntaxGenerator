@@ -2,6 +2,8 @@ package jp.nlaocs.skriptSyntaxGenerator.hook;
 
 import net.bytebuddy.agent.ByteBuddyAgent;
 
+import java.lang.instrument.Instrumentation;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -11,6 +13,10 @@ public final class HookManager {
     private static final HookManager INSTANCE = new HookManager();
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private final List<Hook> hooks = List.of(
+            SkriptClassesRegisterHook.INSTANCE,
+            SkriptRegisterComparatorHook.INSTANCE
+    );
     private Logger logger = Logger.getLogger("HookManager");
 
     private HookManager() {
@@ -31,10 +37,10 @@ public final class HookManager {
         }
 
         try {
-            ByteBuddyAgent.install();
-
-            SkriptClassesRegisterHook.install();
-            SkriptRegisterComparatorHook.install();
+            Instrumentation instrumentation = ByteBuddyAgent.install();
+            for (Hook hook : hooks) {
+                hook.install(instrumentation);
+            }
 
             logger.info("[HookManager] hooks initialized.");
         } catch (Throwable t) {

@@ -4,7 +4,7 @@ import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterComparatorCollecto
 import net.bytebuddy.asm.Advice;
 import org.skriptlang.skript.lang.comparator.Comparator;
 
-public class SkriptRegisterComparatorAdvice {
+public final class SkriptRegisterComparatorAdvice {
     private SkriptRegisterComparatorAdvice() {
     }
 
@@ -15,6 +15,5 @@ public class SkriptRegisterComparatorAdvice {
             @Advice.Argument(2) final Comparator<T1, T2> comparator
     ) {
         RegisterComparatorCollector.getInstance().add(comparator);
-
     }
 }

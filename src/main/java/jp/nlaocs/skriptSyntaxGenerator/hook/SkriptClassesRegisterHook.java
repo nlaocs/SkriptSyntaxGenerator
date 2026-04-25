@@ -1,43 +1,29 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook;
 
-import net.bytebuddy.agent.ByteBuddyAgent;
-import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.asm.Advice;
+public final class SkriptClassesRegisterHook extends AbstractRetransformHook {
 
-import java.lang.instrument.Instrumentation;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static net.bytebuddy.matcher.ElementMatchers.*;
-
-public final class SkriptClassesRegisterHook {
-
-    private static final AtomicBoolean INSTALLED = new AtomicBoolean(false);
+    public static final SkriptClassesRegisterHook INSTANCE = new SkriptClassesRegisterHook();
 
     private SkriptClassesRegisterHook() {
     }
 
-    public static void install() {
-        if (!INSTALLED.compareAndSet(false, true)) return;
+    @Override
+    public String name() {
+        return "SkriptClassesRegisterHook";
+    }
 
-        Instrumentation inst = ByteBuddyAgent.install();
+    @Override
+    protected String targetClassName() {
+        return "ch.njol.skript.registrations.Classes";
+    }
 
-        new AgentBuilder.Default()
-                .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-                .type(named("ch.njol.skript.registrations.Classes"))
-                .transform((builder, td, cl, module, pd) ->
-                        builder.visit(
-                                Advice.to(SkriptRegisterClassAdvice.class)
-                                        .on(named("registerClass"))
-                        )
-                )
-                .installOn(inst);
+    @Override
+    protected String targetMethodName() {
+        return "registerClass";
+    }
 
-        try {
-            inst.retransformClasses(
-                    Class.forName("ch.njol.skript.registrations.Classes")
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    @Override
+    protected Class<?> adviceClass() {
+        return SkriptRegisterClassAdvice.class;
     }
 }
