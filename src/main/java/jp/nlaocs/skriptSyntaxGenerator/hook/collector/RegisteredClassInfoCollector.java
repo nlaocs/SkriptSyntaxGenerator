@@ -2,19 +2,13 @@ package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
 import ch.njol.skript.classes.ClassInfo;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
-public final class RegisteredClassInfoCollector {
+public final class RegisteredClassInfoCollector extends AbstractMapHookCollector<ClassInfo<?>, String, RegisteredClassInfoCollector.Snapshot> {
 
     private static final RegisteredClassInfoCollector INSTANCE = new RegisteredClassInfoCollector();
-
-    // key: codeName, value: Snapshot
-    private final Map<String, Snapshot> infos = new ConcurrentHashMap<>();
 
     private RegisteredClassInfoCollector() {
     }
@@ -23,24 +17,18 @@ public final class RegisteredClassInfoCollector {
         return INSTANCE;
     }
 
-    public void add(ClassInfo<?> info) {
-        if (info == null) return;
+    @Override
+    protected String keyOf(ClassInfo<?> info) {
+        return info.getCodeName();
+    }
 
-        final String codeName = info.getCodeName();
-        if (codeName == null) return;
-        infos.put(codeName, Snapshot.from(info));
+    @Override
+    protected Snapshot snapshotOf(ClassInfo<?> info) {
+        return Snapshot.from(info);
     }
 
     public List<Snapshot> snapshot() {
-        return List.copyOf(infos.values());
-    }
-
-    public Map<String, Snapshot> snapshotMap() {
-        return Collections.unmodifiableMap(new ConcurrentHashMap<>(infos));
-    }
-
-    public void clear() {
-        infos.clear();
+        return List.copyOf(snapshotValues());
     }
 
     public static record Snapshot(
@@ -49,9 +37,16 @@ public final class RegisteredClassInfoCollector {
     ) {
         static Snapshot from(ClassInfo<?> info) {
             return new Snapshot(
-                    Set.copyOf(info.before()),
-                    Set.copyOf(info.after())
+                    safeCopy(info.before()),
+                    safeCopy(info.after())
             );
         }
-    } // todo 過去バージョンに対応するならrecord廃止
+
+        private static Set<String> safeCopy(Collection<String> values) {
+            if (values == null || values.isEmpty()) {
+                return Set.of();
+            }
+            return Set.copyOf(values);
+        }
+    } // TODO: replace record if support for legacy Java versions is required.
 }

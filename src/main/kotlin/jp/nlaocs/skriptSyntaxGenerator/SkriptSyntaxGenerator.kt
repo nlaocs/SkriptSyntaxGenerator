@@ -35,6 +35,7 @@ import com.google.gson.TypeAdapter
 import jp.nlaocs.gson.RuntimeTypeAdapterFactory
 import jp.nlaocs.skriptSyntaxGenerator.generator.SyntaxDataGenerator
 import jp.nlaocs.skriptSyntaxGenerator.hook.HookManager
+import jp.nlaocs.skriptSyntaxGenerator.hook.collector.HookCollectorRegistry
 import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
 import jp.nlaocs.skriptSyntaxGenerator.util.*
 import org.bukkit.Bukkit
@@ -69,7 +70,7 @@ class SkriptSyntaxGenerator : JavaPlugin() {
     }
 
     override fun onDisable() {
-        // Plugin shutdown logic
+        HookCollectorRegistry.clearAll()
     }
 }
 
