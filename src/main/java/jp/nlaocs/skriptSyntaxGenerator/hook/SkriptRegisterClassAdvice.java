@@ -14,8 +14,8 @@ public final class SkriptRegisterClassAdvice {
         RegisteredClassInfoCollector.getInstance().add(arg0);
 
         // System.out.println("[Hook] registerClass arg0=" + (arg0 == null ? "null" : arg0.getClass().getName()));
-        Bukkit.getLogger().info("[Hook] registerClass arg0=" + (arg0 == null ? "null" : arg0));
-        Bukkit.getLogger().info("[Hook] before " + (arg0 == null ? "null" : arg0.before()));
-        Bukkit.getLogger().info("[Hook] after " + (arg0 == null ? "null" : arg0.after()));
+        // Bukkit.getLogger().info("[Hook] registerClass arg0=" + (arg0 == null ? "null" : arg0));
+        // Bukkit.getLogger().info("[Hook] before " + (arg0 == null ? "null" : arg0.before()));
+        // Bukkit.getLogger().info("[Hook] after " + (arg0 == null ? "null" : arg0.after()));
     }
 }

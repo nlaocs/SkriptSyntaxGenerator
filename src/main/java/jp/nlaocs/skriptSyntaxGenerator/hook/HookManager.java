@@ -34,6 +34,7 @@ public final class HookManager {
             ByteBuddyAgent.install();
 
             SkriptClassesRegisterHook.install();
+            SkriptRegisterComparatorHook.install();
 
             logger.info("[HookManager] hooks initialized.");
         } catch (Throwable t) {

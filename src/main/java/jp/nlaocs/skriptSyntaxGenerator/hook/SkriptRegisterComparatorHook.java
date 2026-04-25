@@ -9,11 +9,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
-public final class SkriptClassesRegisterHook {
+public final class SkriptRegisterComparatorHook {
 
     private static final AtomicBoolean INSTALLED = new AtomicBoolean(false);
 
-    private SkriptClassesRegisterHook() {
+    private SkriptRegisterComparatorHook() {
     }
 
     public static void install() {
@@ -23,18 +23,18 @@ public final class SkriptClassesRegisterHook {
 
         new AgentBuilder.Default()
                 .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-                .type(named("ch.njol.skript.registrations.Classes"))
+                .type(named("org.skriptlang.skript.lang.comparator.Comparators"))
                 .transform((builder, td, cl, module, pd) ->
                         builder.visit(
-                                Advice.to(SkriptRegisterClassAdvice.class)
-                                        .on(named("registerClass"))
+                                Advice.to(SkriptRegisterComparatorAdvice.class)
+                                        .on(named("registerComparator"))
                         )
                 )
                 .installOn(inst);
 
         try {
             inst.retransformClasses(
-                    Class.forName("ch.njol.skript.registrations.Classes")
+                    Class.forName("org.skriptlang.skript.lang.comparator.Comparators")
             );
         } catch (Exception e) {
             e.printStackTrace();

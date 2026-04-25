@@ -53,5 +53,5 @@ public final class RegisteredClassInfoCollector {
                     Set.copyOf(info.after())
             );
         }
-    }
+    } // todo 過去バージョンに対応するならrecord廃止
 }
