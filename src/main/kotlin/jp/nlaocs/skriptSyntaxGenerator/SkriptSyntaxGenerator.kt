@@ -55,23 +55,10 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
                 .registerSubtype(KeyValueEntryData::class.java)
                 .registerSubtype(SectionEntryData::class.java)
 
-
             val gson = GsonFactory.create()
-
-            // todo getAddonProviderは、引数にかかわらず同じproviderを返してくるので今はこうしている。将来的にaddonごとのproviderが返されるようになった場合変更する
-            //val aliases = Aliases.getAddonProvider(Skript.getAddonInstance())
 
             val syntaxDataGenerator = SyntaxDataGenerator()
             syntaxDataGenerator.generate()
-
-            /*val aliasesData = mutableListOf<AliasesData>()
-            if (aliases != null) {
-                val aliasData = AliasesData(aliases)
-                aliasesData.add(aliasData)
-
-            }
-            FileUtils.writeToFile("aliases.json", gson.toJson(aliasesData))*/
-
 
             sender.sendMessage("Skript syntax data generation completed!")
             return true
