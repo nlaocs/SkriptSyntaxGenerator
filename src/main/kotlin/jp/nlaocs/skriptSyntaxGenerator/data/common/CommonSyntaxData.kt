@@ -63,9 +63,7 @@ open class CommonSyntaxData(
 
     constructor(s: SyntaxInfo<*>) : this(
         name = s.type().annoValue<Name, String>(),
-        id = s.type().annoValue<Name, String>()
-            ?.lowercase(Locale.ROOT)
-            ?.replace(" ", "_"),
+        id = null,
         documentationId = s.type().annoValue<DocumentationId, String>(),
         elementClass = s.type(),
         since = s.type().annoValues<Since, String>(),
@@ -94,4 +92,3 @@ open class CommonSyntaxData(
                         ?: type.anno<Examples>()?.value?.toList()
     }
 } // todo 実装が汚い気がする..
-// todo IDを生成時点で決定しているのをやめる
