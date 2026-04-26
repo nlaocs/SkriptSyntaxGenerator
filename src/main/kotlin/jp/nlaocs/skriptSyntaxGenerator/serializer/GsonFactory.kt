@@ -15,8 +15,6 @@ object GsonFactory {
                 JsonPrimitive(src.toString())
             })
         .registerTypeAdapter(Pattern::class.java, PatternAdapter())
-        .registerTypeHierarchyAdapter(EntryData::class.java, EntryDataSerializer())
-        // .registerTypeAdapterFactory(entryDataAdapter)
         // .registerTypeAdapter(java.awt.Color::class.java, ColorAdapter())
         // .serializeNulls()
         .disableHtmlEscaping()
