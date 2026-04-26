@@ -1,5 +1,6 @@
 package jp.nlaocs.skriptSyntaxGenerator.data
 
+import org.bukkit.Bukkit
 import org.skriptlang.skript.lang.entry.ContainerEntryData
 import org.skriptlang.skript.lang.entry.EntryData
 import org.skriptlang.skript.lang.entry.EntryValidator
@@ -15,8 +16,18 @@ data class EntryValidatorData(
     val entryData: List<EntryDataInfo>,
 ) {
     companion object {
-        fun from(src: EntryValidator): EntryValidatorData =
-            EntryValidatorData(src.entryData.map { EntryDataInfo.from(it) })
+        fun from(
+            src: EntryValidator,
+            visitedValidators: MutableSet<EntryValidator> = mutableSetOf()
+        ): EntryValidatorData {
+            if (src in visitedValidators) {
+                Bukkit.getLogger().warning("Detected infinite nesting in EntryValidator: ${src.javaClass.simpleName}")
+                return EntryValidatorData(emptyList())
+            }
+
+            visitedValidators.add(src)
+            return EntryValidatorData(src.entryData.map { EntryDataInfo.from(it, visitedValidators) })
+        }
     }
 }
 
@@ -35,7 +46,7 @@ data class EntryDataInfo(
     val nestedValidator: EntryValidatorData? = null,
 ) {
     companion object {
-        fun from(src: EntryData<*>): EntryDataInfo {
+        fun from(src: EntryData<*>, visitedValidators: MutableSet<EntryValidator> = mutableSetOf()): EntryDataInfo {
             val key = src.key
             val defaultValue = normalizeValue(src.defaultValue)
             val optional = src.isOptional
@@ -93,8 +104,13 @@ data class EntryDataInfo(
                     multiple = multiple,
                     entryDataClass = entryDataClass,
                     kind = "container",
-                    nestedValidator = EntryValidatorData.from(src.entryValidator),
-                ) // todo ネスト無限になる可能性
+                    nestedValidator = if (src.entryValidator in visitedValidators) {
+                        Bukkit.getLogger().warning("Detected infinite nesting in ContainerEntryData: key='$key'")
+                        null
+                    } else {
+                        EntryValidatorData.from(src.entryValidator, visitedValidators)
+                    }
+                )
 
                 is SectionEntryData -> EntryDataInfo(
                     key = key,
