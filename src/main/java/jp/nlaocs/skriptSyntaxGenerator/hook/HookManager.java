@@ -15,7 +15,8 @@ public final class HookManager {
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final List<Hook> hooks = List.of(
             RegisterClassHook.INSTANCE,
-            RegisterComparatorHook.INSTANCE
+            RegisterComparatorHook.INSTANCE,
+            RegisterDifferenceHook.INSTANCE
     );
     private Logger logger = Logger.getLogger("HookManager");
 

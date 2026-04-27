@@ -6,7 +6,8 @@ public final class HookCollectorRegistry {
 
     private static final List<HookCollector<?, ?, ?>> COLLECTORS = List.of(
             RegisterClassCollector.getInstance(),
-            RegisterComparatorCollector.getInstance()
+            RegisterComparatorCollector.getInstance(),
+            RegisterDifferenceCollector.getInstance()
     );
 
     private HookCollectorRegistry() {
@@ -17,7 +18,7 @@ public final class HookCollectorRegistry {
     }
 
     public static void clearAll() {
-        COLLECTORS.forEach(collector -> collector.clear());
+        COLLECTORS.forEach(HookCollector::clear);
     }
 }
 
