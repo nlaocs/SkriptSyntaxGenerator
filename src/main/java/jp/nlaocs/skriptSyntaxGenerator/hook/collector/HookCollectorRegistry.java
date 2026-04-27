@@ -7,7 +7,8 @@ public final class HookCollectorRegistry {
     private static final List<HookCollector<?, ?, ?>> COLLECTORS = List.of(
             RegisterClassCollector.getInstance(),
             RegisterComparatorCollector.getInstance(),
-            RegisterDifferenceCollector.getInstance()
+            RegisterDifferenceCollector.getInstance(),
+            RegisterConverterCollector.getInstance()
     );
 
     private HookCollectorRegistry() {

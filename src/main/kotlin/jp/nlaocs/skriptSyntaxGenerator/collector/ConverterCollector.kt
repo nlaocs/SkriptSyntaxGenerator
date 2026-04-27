@@ -1,11 +1,10 @@
 package jp.nlaocs.skriptSyntaxGenerator.collector
 
-import org.skriptlang.skript.lang.converter.ConverterInfo
+import jp.nlaocs.skriptSyntaxGenerator.data.ConverterData
 import org.skriptlang.skript.lang.converter.Converters
 
-class ConverterCollector : SyntaxCollector<List<ConverterInfo<*, *>>> {
+class ConverterCollector : SyntaxCollector<List<ConverterData>> {
     override val fileName: String = "Converters.json"
 
-    override fun collect(): List<ConverterInfo<*, *>> = Converters.getConverterInfos()
-    // todo ConverterInfo.converterを除外
+    override fun collect(): List<ConverterData> = Converters.getConverterInfos().map { ConverterData(it) }
 }
