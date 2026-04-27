@@ -5,7 +5,7 @@ import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
 import org.skriptlang.skript.registration.SyntaxRegistry
 
 class EventCollector(private val registry: SyntaxRegistry) : SyntaxCollector<List<EventData>> {
-    override val fileName = "events.json"
+    override val fileName = "Events.json"
 
     override fun collect(): List<EventData> =
         registry.syntaxes(BukkitSyntaxInfos.Event.KEY)

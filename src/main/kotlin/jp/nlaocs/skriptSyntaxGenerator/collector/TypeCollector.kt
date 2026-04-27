@@ -4,7 +4,7 @@ import ch.njol.skript.registrations.Classes
 import jp.nlaocs.skriptSyntaxGenerator.data.TypeData
 
 class TypeCollector : SyntaxCollector<List<TypeData>> {
-    override val fileName = "types.json"
+    override val fileName = "Types.json"
 
     override fun collect(): List<TypeData> =
         Classes.getClassInfos()
