@@ -1,10 +1,10 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook;
 
-public final class SkriptClassesRegisterHook extends AbstractRetransformHook {
+public final class RegisterClassHook extends AbstractRetransformHook {
 
-    public static final SkriptClassesRegisterHook INSTANCE = new SkriptClassesRegisterHook();
+    public static final RegisterClassHook INSTANCE = new RegisterClassHook();
 
-    private SkriptClassesRegisterHook() {
+    private RegisterClassHook() {
     }
 
     @Override
@@ -24,6 +24,6 @@ public final class SkriptClassesRegisterHook extends AbstractRetransformHook {
 
     @Override
     protected Class<?> adviceClass() {
-        return SkriptRegisterClassAdvice.class;
+        return RegisterClassAdvice.class;
     }
 }

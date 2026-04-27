@@ -1,10 +1,10 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook;
 
-public final class SkriptRegisterComparatorHook extends AbstractRetransformHook {
+public final class RegisterComparatorHook extends AbstractRetransformHook {
 
-    public static final SkriptRegisterComparatorHook INSTANCE = new SkriptRegisterComparatorHook();
+    public static final RegisterComparatorHook INSTANCE = new RegisterComparatorHook();
 
-    private SkriptRegisterComparatorHook() {
+    private RegisterComparatorHook() {
     }
 
     @Override
@@ -24,6 +24,6 @@ public final class SkriptRegisterComparatorHook extends AbstractRetransformHook 
 
     @Override
     protected Class<?> adviceClass() {
-        return SkriptRegisterComparatorAdvice.class;
+        return RegisterComparatorAdvice.class;
     }
 }

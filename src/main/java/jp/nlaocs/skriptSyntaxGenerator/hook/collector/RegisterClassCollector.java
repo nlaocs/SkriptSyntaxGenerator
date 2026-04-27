@@ -6,14 +6,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-public final class RegisteredClassInfoCollector extends AbstractMapHookCollector<ClassInfo<?>, String, RegisteredClassInfoCollector.Snapshot> {
+public final class RegisterClassCollector extends AbstractMapHookCollector<ClassInfo<?>, String, RegisterClassCollector.Snapshot> {
 
-    private static final RegisteredClassInfoCollector INSTANCE = new RegisteredClassInfoCollector();
+    private static final RegisterClassCollector INSTANCE = new RegisterClassCollector();
 
-    private RegisteredClassInfoCollector() {
+    private RegisterClassCollector() {
     }
 
-    public static RegisteredClassInfoCollector getInstance() {
+    public static RegisterClassCollector getInstance() {
         return INSTANCE;
     }
 

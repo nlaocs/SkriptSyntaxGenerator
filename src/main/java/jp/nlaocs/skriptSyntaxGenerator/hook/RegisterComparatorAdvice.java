@@ -4,8 +4,8 @@ import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterComparatorCollecto
 import net.bytebuddy.asm.Advice;
 import org.skriptlang.skript.lang.comparator.Comparator;
 
-public final class SkriptRegisterComparatorAdvice {
-    private SkriptRegisterComparatorAdvice() {
+public final class RegisterComparatorAdvice {
+    private RegisterComparatorAdvice() {
     }
 
     @Advice.OnMethodEnter(suppress = Throwable.class)

@@ -4,20 +4,20 @@ import java.util.List;
 
 public final class HookCollectorRegistry {
 
-	private static final List<HookCollector<?, ?, ?>> COLLECTORS = List.of(
-			RegisteredClassInfoCollector.getInstance(),
-			RegisterComparatorCollector.getInstance()
-	);
+    private static final List<HookCollector<?, ?, ?>> COLLECTORS = List.of(
+            RegisterClassCollector.getInstance(),
+            RegisterComparatorCollector.getInstance()
+    );
 
-	private HookCollectorRegistry() {
-	}
+    private HookCollectorRegistry() {
+    }
 
-	public static List<HookCollector<?, ?, ?>> collectors() {
-		return COLLECTORS;
-	}
+    public static List<HookCollector<?, ?, ?>> collectors() {
+        return COLLECTORS;
+    }
 
-	public static void clearAll() {
-		COLLECTORS.forEach(collector -> collector.clear());
-	}
+    public static void clearAll() {
+        COLLECTORS.forEach(collector -> collector.clear());
+    }
 }
 
