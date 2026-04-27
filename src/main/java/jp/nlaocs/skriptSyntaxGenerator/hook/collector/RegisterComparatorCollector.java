@@ -1,10 +1,12 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.skriptlang.skript.lang.comparator.Comparator;
 
 import java.util.Map;
 
-public final class RegisterComparatorCollector extends AbstractMapHookCollector<Comparator<?, ?>, Comparator<?, ?>, RegisterComparatorCollector.Snapshot> {
+public final class RegisterComparatorCollector extends AbstractMapHookCollector<RegisterComparatorCollector.Registration, Comparator<?, ?>, RegisterComparatorCollector.Snapshot> {
 
     private static final RegisterComparatorCollector INSTANCE = new RegisterComparatorCollector();
 
@@ -15,30 +17,66 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
         return INSTANCE;
     }
 
-    @Override
-    protected Comparator<?, ?> keyOf(Comparator<?, ?> comparator) {
-        return comparator;
+    public <T1, T2> void addFromHook(Class<T1> firstType, Class<T2> secondType, Comparator<T1, T2> comparator) {
+        add(new Registration(firstType, secondType, comparator));
     }
 
     @Override
-    protected Snapshot snapshotOf(Comparator<?, ?> comparator) {
-        return Snapshot.from(comparator);
+    protected Comparator<?, ?> keyOf(Registration registration) {
+        return registration.comparator();
+    }
+
+    @Override
+    protected Snapshot snapshotOf(Registration registration) {
+        return Snapshot.from(registration);
     }
 
     public Map<Comparator<?, ?>, Snapshot> getComparators() {
         return snapshotMap();
     }
 
+    public static record Registration(
+            Class<?> firstType,
+            Class<?> secondType,
+            Comparator<?, ?> comparator
+    ) {
+    }
+
 
     public static record Snapshot(
             boolean supportsOrdering,
-            boolean supportsInversion
+            boolean supportsInversion,
+            String addonName,
+            String addonVersion
     ) {
-        static Snapshot from(Comparator<?, ?> comparator) {
+        static Snapshot from(Registration registration) {
+            Comparator<?, ?> comparator = registration.comparator();
+            Plugin plugin = resolvePlugin(registration);
             return new Snapshot(
                     comparator.supportsOrdering(),
-                    comparator.supportsInversion()
+                    comparator.supportsInversion(),
+                    plugin != null ? plugin.getName() : null,
+                    plugin != null ? plugin.getDescription().getVersion() : null
             );
+        }
+
+        private static Plugin resolvePlugin(Registration registration) {
+            Class<?>[] candidates = new Class<?>[]{
+                    registration.comparator().getClass(),
+                    registration.firstType(),
+                    registration.secondType()
+            };
+
+            for (Class<?> candidate : candidates) {
+                if (candidate == null) {
+                    continue;
+                }
+                try {
+                    return JavaPlugin.getProvidingPlugin(candidate);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+            return null;
         }
     }
 

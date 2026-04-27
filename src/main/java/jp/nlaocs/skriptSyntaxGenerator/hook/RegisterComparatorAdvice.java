@@ -14,6 +14,6 @@ public final class RegisterComparatorAdvice {
             @Advice.Argument(1) final Class<T2> secondType,
             @Advice.Argument(2) final Comparator<T1, T2> comparator
     ) {
-        RegisterComparatorCollector.getInstance().add(comparator);
+        RegisterComparatorCollector.getInstance().addFromHook(firstType, secondType, comparator);
     }
 }
