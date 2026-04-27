@@ -1,7 +1,9 @@
 package jp.nlaocs.skriptSyntaxGenerator.generator
 
 import ch.njol.skript.Skript
-import jp.nlaocs.skriptSyntaxGenerator.collector.ArithmeticCollector
+import jp.nlaocs.skriptSyntaxGenerator.collector.ArithmeticDifferenceCollector
+import jp.nlaocs.skriptSyntaxGenerator.collector.ArithmeticOperationCollector
+import jp.nlaocs.skriptSyntaxGenerator.collector.ArithmeticOperatorCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ComparatorCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ConditionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ConverterCollector
@@ -29,7 +31,9 @@ class SyntaxDataGenerator {
         FunctionCollector(),
         SectionCollector(registry),
         StructureCollector(registry),
-        ArithmeticCollector(),
+        ArithmeticOperatorCollector(),
+        ArithmeticOperationCollector(),
+        ArithmeticDifferenceCollector(),
         ConverterCollector(),
         ComparatorCollector(),
     )
