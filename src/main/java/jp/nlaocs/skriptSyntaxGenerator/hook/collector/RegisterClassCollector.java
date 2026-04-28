@@ -1,6 +1,7 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
 import ch.njol.skript.classes.ClassInfo;
+import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo;
 
 import java.util.Collection;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.Set;
 public final class RegisterClassCollector extends AbstractMapHookCollector<ClassInfo<?>, String, RegisterClassCollector.Snapshot> {
 
     private static final RegisterClassCollector INSTANCE = new RegisterClassCollector();
+    private static final ThreadLocal<AddonInfo> CURRENT_ADDON = new ThreadLocal<>();
 
     private RegisterClassCollector() {
     }
@@ -24,7 +26,21 @@ public final class RegisterClassCollector extends AbstractMapHookCollector<Class
 
     @Override
     protected Snapshot snapshotOf(ClassInfo<?> info) {
-        return Snapshot.from(info);
+        return Snapshot.from(info, CURRENT_ADDON.get());
+    }
+
+    public void addFromHook(ClassInfo<?> info, AddonInfo addon) {
+        if (addon == null) {
+            add(info);
+            return;
+        }
+
+        CURRENT_ADDON.set(addon);
+        try {
+            add(info);
+        } finally {
+            CURRENT_ADDON.remove();
+        }
     }
 
     public List<Snapshot> snapshot() {
@@ -32,11 +48,13 @@ public final class RegisterClassCollector extends AbstractMapHookCollector<Class
     }
 
     public static record Snapshot(
+            AddonInfo addon,
             Set<String> before,
             Set<String> after
     ) {
-        static Snapshot from(ClassInfo<?> info) {
+        static Snapshot from(ClassInfo<?> info, AddonInfo addon) {
             return new Snapshot(
+                    addon,
                     safeCopy(info.before()),
                     safeCopy(info.after())
             );

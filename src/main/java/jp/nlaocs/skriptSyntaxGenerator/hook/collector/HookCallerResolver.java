@@ -3,11 +3,12 @@ package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
-final class HookCallerResolver {
+public final class HookCallerResolver {
 
     private static final String OWN_PACKAGE_PREFIX = "jp.nlaocs.skriptSyntaxGenerator.";
     private static final String HOOK_PACKAGE_PREFIX = "jp.nlaocs.skriptSyntaxGenerator.hook.";
-    private static final String SKRIPT_PACKAGE_PREFIX = "org.skriptlang.skript.";
+    private static final String SKRIPT_CORE_PACKAGE_PREFIX = "ch.njol.skript.";
+    private static final String SKRIPT_LANG_PACKAGE_PREFIX = "org.skriptlang.skript.";
     private static final String[] IGNORED_PREFIXES = {
             OWN_PACKAGE_PREFIX,
             HOOK_PACKAGE_PREFIX,
@@ -26,7 +27,7 @@ final class HookCallerResolver {
     private HookCallerResolver() {
     }
 
-    static Plugin resolvePlugin() {
+    public static Plugin resolvePlugin() {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         Plugin skriptPlugin = null;
 
@@ -47,7 +48,7 @@ final class HookCallerResolver {
                 continue;
             }
 
-            if (!className.startsWith(SKRIPT_PACKAGE_PREFIX)) {
+            if (!isSkriptInternal(className)) {
                 return plugin;
             }
 
@@ -72,6 +73,11 @@ final class HookCallerResolver {
         return "java.lang.Thread".equals(className)
                 || className.startsWith("net.bytebuddy.")
                 || className.startsWith("org.objectweb.");
+    }
+
+    private static boolean isSkriptInternal(String className) {
+        return className.startsWith(SKRIPT_CORE_PACKAGE_PREFIX)
+                || className.startsWith(SKRIPT_LANG_PACKAGE_PREFIX);
     }
 
     private static Class<?> resolveClass(String className) {
