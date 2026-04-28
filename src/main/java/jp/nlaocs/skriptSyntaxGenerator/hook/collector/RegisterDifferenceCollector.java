@@ -1,7 +1,6 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.skriptlang.skript.lang.arithmetic.Operation;
 
 import java.util.Map;
@@ -75,30 +74,15 @@ public final class RegisterDifferenceCollector extends AbstractMapHookCollector<
             String addonVersion
     ) {
         static Snapshot from(Registration registration) {
-            Plugin plugin = resolvePlugin(registration);
+            Plugin plugin = resolvePlugin();
             return new Snapshot(
                     plugin != null ? plugin.getName() : null,
                     plugin != null ? plugin.getDescription().getVersion() : null
             );
         }
 
-        private static Plugin resolvePlugin(Registration registration) {
-            Class<?>[] candidates = new Class<?>[]{
-                    registration.operation().getClass(),
-                    registration.type(),
-                    registration.returnType()
-            };
-
-            for (Class<?> candidate : candidates) {
-                if (candidate == null) {
-                    continue;
-                }
-                try {
-                    return JavaPlugin.getProvidingPlugin(candidate);
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-            return null;
+        private static Plugin resolvePlugin() {
+            return HookCallerResolver.resolvePlugin();
         }
     }
 }

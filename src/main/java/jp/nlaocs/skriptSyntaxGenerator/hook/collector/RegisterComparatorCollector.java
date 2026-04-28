@@ -1,7 +1,6 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.skriptlang.skript.lang.comparator.Comparator;
 
 import java.util.Map;
@@ -51,7 +50,7 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
     ) {
         static Snapshot from(Registration registration) {
             Comparator<?, ?> comparator = registration.comparator();
-            Plugin plugin = resolvePlugin(registration);
+            Plugin plugin = resolvePlugin();
             return new Snapshot(
                     comparator.supportsOrdering(),
                     comparator.supportsInversion(),
@@ -60,23 +59,8 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
             );
         }
 
-        private static Plugin resolvePlugin(Registration registration) {
-            Class<?>[] candidates = new Class<?>[]{
-                    registration.comparator().getClass(),
-                    registration.firstType(),
-                    registration.secondType()
-            };
-
-            for (Class<?> candidate : candidates) {
-                if (candidate == null) {
-                    continue;
-                }
-                try {
-                    return JavaPlugin.getProvidingPlugin(candidate);
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-            return null;
+        private static Plugin resolvePlugin() {
+            return HookCallerResolver.resolvePlugin();
         }
     }
 
