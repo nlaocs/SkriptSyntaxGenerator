@@ -56,20 +56,20 @@ public final class RegisterDifferenceCollector extends AbstractMapHookCollector<
         return snapshotMap();
     }
 
-    public static record Registration(
+    public record Registration(
             Class<?> type,
             Class<?> returnType,
             Operation<?, ?, ?> operation
     ) {
     }
 
-    public static record Key(
+    public record Key(
             Class<?> type,
             Class<?> returnType
     ) {
     }
 
-    public static record Snapshot(
+    public record Snapshot(
             String addonName,
             String addonVersion
     ) {

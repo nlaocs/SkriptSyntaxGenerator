@@ -33,7 +33,7 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
         return snapshotMap();
     }
 
-    public static record Registration(
+    public record Registration(
             Class<?> firstType,
             Class<?> secondType,
             Comparator<?, ?> comparator
@@ -41,7 +41,7 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
     }
 
 
-    public static record Snapshot(
+    public record Snapshot(
             boolean supportsOrdering,
             boolean supportsInversion,
             String addonName,
@@ -63,7 +63,7 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
         }
     }
 
-    public static record Key(
+    public record Key(
             Class<?> firstType,
             Class<?> secondType,
             Comparator<?, ?> comparator

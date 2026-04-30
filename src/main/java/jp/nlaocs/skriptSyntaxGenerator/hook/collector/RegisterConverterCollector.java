@@ -52,7 +52,7 @@ public final class RegisterConverterCollector extends AbstractMapHookCollector<R
         return snapshotMap();
     }
 
-    public static record Registration(
+    public record Registration(
             Class<?> from,
             Class<?> to,
             Converter<?, ?> converter,
@@ -60,14 +60,14 @@ public final class RegisterConverterCollector extends AbstractMapHookCollector<R
     ) {
     }
 
-    public static record Key(
+    public record Key(
             Class<?> from,
             Class<?> to,
             int flags
     ) {
     }
 
-    public static record Snapshot(
+    public record Snapshot(
             String addonName,
             String addonVersion
     ) {

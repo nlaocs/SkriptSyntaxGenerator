@@ -47,7 +47,7 @@ public final class RegisterClassCollector extends AbstractMapHookCollector<Class
         return List.copyOf(snapshotValues());
     }
 
-    public static record Snapshot(
+    public record Snapshot(
             AddonInfo addon,
             Set<String> before,
             Set<String> after
