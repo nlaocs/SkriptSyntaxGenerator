@@ -37,6 +37,7 @@ tasks {
             languageVersion.set(JavaLanguageVersion.of(21))
         }
         jvmArgs("-XX:+EnableDynamicAgentLoading")
+        // jvmArgs("-DskriptSyntaxGenerator.hookLog=true")
         args("--port", "25595")
         downloadPlugins {
             //https://github.com/SkriptLang/Skript
