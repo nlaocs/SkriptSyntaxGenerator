@@ -1,7 +1,5 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.Plugin;
 import org.skriptlang.skript.lang.comparator.Comparator;
 
 import java.util.Map;
@@ -51,13 +49,7 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
     ) {
         static Snapshot from(Registration registration) {
             Comparator<?, ?> comparator = registration.comparator();
-            String comparatorId = comparator.getClass().getName() + "@" + System.identityHashCode(comparator);
-            Bukkit.getLogger().info("Snapshotting comparator: first: " + registration.firstType().getName()
-                    + ", second: " + registration.secondType().getName()
-                    + ", comparator: " + comparator.getClass().getName()
-                    + " (" + comparatorId + ")");
-            Plugin plugin = resolvePlugin();
-            Bukkit.getLogger().info("Resolved plugin for comparator (" + comparatorId + "): " + (plugin != null ? plugin.getName() + "@" + plugin.getDescription().getVersion() : "null"));
+            var plugin = resolvePlugin();
             return new Snapshot(
                     comparator.supportsOrdering(),
                     comparator.supportsInversion(),
@@ -66,7 +58,7 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
             );
         }
 
-        private static Plugin resolvePlugin() {
+        private static org.bukkit.plugin.Plugin resolvePlugin() {
             return HookCallerResolver.resolvePlugin();
         }
     }

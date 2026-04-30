@@ -20,6 +20,7 @@ public final class HookManager {
             RegisterConverterHook.INSTANCE
     );
     private Logger logger = Logger.getLogger("HookManager");
+    private final boolean hookLogEnabled = HookLogOptions.isEnabled();
 
     private HookManager() {
     }
@@ -34,7 +35,9 @@ public final class HookManager {
 
     public void init() {
         if (!initialized.compareAndSet(false, true)) {
-            logger.fine("[HookManager] already initialized. skip.");
+            if (hookLogEnabled) {
+                logger.fine("[HookManager] already initialized. skip.");
+            }
             return;
         }
 
@@ -44,7 +47,9 @@ public final class HookManager {
                 hook.install(instrumentation);
             }
 
-            logger.info("[HookManager] hooks initialized.");
+            if (hookLogEnabled) {
+                logger.info("[HookManager] hooks initialized.");
+            }
         } catch (Throwable t) {
             logger.log(Level.SEVERE, "[HookManager] failed to initialize hooks.", t);
         }
