@@ -14,7 +14,7 @@ class ComparatorData(
 
     @Transient
     val snapshot = RegisterComparatorCollector.getInstance()
-        .snapshotMap()[comparator.comparator]
+        .snapshotMap()[RegisterComparatorCollector.Key(firstType, secondType, comparator.comparator)]
 
     val supportsOrdering: Boolean? = snapshot?.supportsOrdering
     val supportsInversion: Boolean? = snapshot?.supportsInversion

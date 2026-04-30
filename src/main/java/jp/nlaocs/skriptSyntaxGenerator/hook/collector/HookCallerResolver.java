@@ -1,9 +1,13 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.logging.Logger;
+
 public final class HookCallerResolver {
+    private static final Logger LOGGER = Bukkit.getLogger();
 
     private static final String OWN_PACKAGE_PREFIX = "jp.nlaocs.skriptSyntaxGenerator.";
     private static final String HOOK_PACKAGE_PREFIX = "jp.nlaocs.skriptSyntaxGenerator.hook.";
@@ -31,32 +35,48 @@ public final class HookCallerResolver {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         Plugin skriptPlugin = null;
 
-        for (StackTraceElement frame : stackTrace) {
+        LOGGER.info("[HookCallerResolver] ===== Stack Trace Analysis Start =====");
+        LOGGER.info("[HookCallerResolver] Total frames: " + stackTrace.length);
+
+        for (int i = 0; i < stackTrace.length; i++) {
+            StackTraceElement frame = stackTrace[i];
             String className = frame.getClassName();
 
+            LOGGER.info("[HookCallerResolver] [" + i + "] " + className + "." + frame.getMethodName());
+
             if (shouldSkip(className)) {
+                LOGGER.info("[HookCallerResolver]   -> SKIPPED");
                 continue;
             }
 
+            LOGGER.info("[HookCallerResolver]   -> Processing...");
+
             Class<?> candidate = resolveClass(className);
             if (candidate == null) {
+                LOGGER.info("[HookCallerResolver]   -> Failed to resolve class");
                 continue;
             }
 
             Plugin plugin = tryResolvePlugin(candidate);
             if (plugin == null) {
+                LOGGER.info("[HookCallerResolver]   -> No plugin providing this class");
                 continue;
             }
 
+            LOGGER.info("[HookCallerResolver]   -> Found plugin: " + plugin.getName());
+
             if (!isSkriptInternal(className)) {
+                LOGGER.info("[HookCallerResolver] ===== RESULT: " + plugin.getName() + " (Non-Skript) =====");
                 return plugin;
             }
 
             if (skriptPlugin == null) {
+                LOGGER.info("[HookCallerResolver]   -> Storing as fallback Skript plugin");
                 skriptPlugin = plugin;
             }
         }
 
+        LOGGER.info("[HookCallerResolver] ===== RESULT: " + (skriptPlugin != null ? skriptPlugin.getName() : "null") + " (Skript) =====");
         return skriptPlugin;
     }
 

@@ -1,11 +1,12 @@
 package jp.nlaocs.skriptSyntaxGenerator.hook.collector;
 
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.skriptlang.skript.lang.comparator.Comparator;
 
 import java.util.Map;
 
-public final class RegisterComparatorCollector extends AbstractMapHookCollector<RegisterComparatorCollector.Registration, Comparator<?, ?>, RegisterComparatorCollector.Snapshot> {
+public final class RegisterComparatorCollector extends AbstractMapHookCollector<RegisterComparatorCollector.Registration, RegisterComparatorCollector.Key, RegisterComparatorCollector.Snapshot> {
 
     private static final RegisterComparatorCollector INSTANCE = new RegisterComparatorCollector();
 
@@ -21,8 +22,8 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
     }
 
     @Override
-    protected Comparator<?, ?> keyOf(Registration registration) {
-        return registration.comparator();
+    protected Key keyOf(Registration registration) {
+        return new Key(registration.firstType(), registration.secondType(), registration.comparator());
     }
 
     @Override
@@ -30,7 +31,7 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
         return Snapshot.from(registration);
     }
 
-    public Map<Comparator<?, ?>, Snapshot> getComparators() {
+    public Map<Key, Snapshot> getComparators() {
         return snapshotMap();
     }
 
@@ -50,7 +51,13 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
     ) {
         static Snapshot from(Registration registration) {
             Comparator<?, ?> comparator = registration.comparator();
+            String comparatorId = comparator.getClass().getName() + "@" + System.identityHashCode(comparator);
+            Bukkit.getLogger().info("Snapshotting comparator: first: " + registration.firstType().getName()
+                    + ", second: " + registration.secondType().getName()
+                    + ", comparator: " + comparator.getClass().getName()
+                    + " (" + comparatorId + ")");
             Plugin plugin = resolvePlugin();
+            Bukkit.getLogger().info("Resolved plugin for comparator (" + comparatorId + "): " + (plugin != null ? plugin.getName() + "@" + plugin.getDescription().getVersion() : "null"));
             return new Snapshot(
                     comparator.supportsOrdering(),
                     comparator.supportsInversion(),
@@ -62,6 +69,13 @@ public final class RegisterComparatorCollector extends AbstractMapHookCollector<
         private static Plugin resolvePlugin() {
             return HookCallerResolver.resolvePlugin();
         }
+    }
+
+    public static record Key(
+            Class<?> firstType,
+            Class<?> secondType,
+            Comparator<?, ?> comparator
+    ) {
     }
 
 }
