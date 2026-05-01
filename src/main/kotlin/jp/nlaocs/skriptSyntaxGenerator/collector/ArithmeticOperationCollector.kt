@@ -8,6 +8,6 @@ class ArithmeticOperationCollector : SyntaxCollector<Map<String, List<OperationD
 
     override fun collect(): Map<String, List<OperationData>> =
         Arithmetics.getAllOperators().associate { operator ->
-            operator.sign() to Arithmetics.getOperations(operator).map { OperationData(it) }
+            operator.sign() to Arithmetics.getOperations(operator).map { OperationData(operator.sign(), it) }
         }
 }

@@ -8,6 +8,7 @@ public final class HookCollectorRegistry {
             RegisterClassCollector.getInstance(),
             RegisterComparatorCollector.getInstance(),
             RegisterOperatorCollector.getInstance(),
+            RegisterOperationCollector.getInstance(),
             RegisterDifferenceCollector.getInstance(),
             RegisterConverterCollector.getInstance()
     );
