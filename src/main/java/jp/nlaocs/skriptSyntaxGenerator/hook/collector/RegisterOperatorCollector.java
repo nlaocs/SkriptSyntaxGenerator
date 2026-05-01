@@ -16,8 +16,22 @@ public final class RegisterOperatorCollector extends AbstractMapHookCollector<Op
         return INSTANCE;
     }
 
-    public void addFromHook(Object... args) {
+    @Override
+    public boolean isValidArguments(Object... args) {
         if (args == null || args.length == 0) {
+            return false;
+        }
+        // Valid if any argument is an Operator
+        for (Object arg : args) {
+            if (arg instanceof Operator) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void addFromHook(Object... args) {
+        if (!isValidArguments(args)) {
             return;
         }
 

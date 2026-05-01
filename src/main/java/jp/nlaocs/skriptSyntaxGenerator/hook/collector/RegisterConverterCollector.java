@@ -16,8 +16,30 @@ public final class RegisterConverterCollector extends AbstractMapHookCollector<R
         return INSTANCE;
     }
 
-    public void addFromHook(Object... args) {
+    @Override
+    public boolean isValidArguments(Object... args) {
         if (args == null || (args.length != 3 && args.length != 4)) {
+            return false;
+        }
+        // args[0] = Class<?> from, args[1] = Class<?> to, args[2] = Converter<?, ?>
+        if (!(args[0] instanceof Class<?>)) {
+            return false;
+        }
+        if (!(args[1] instanceof Class<?>)) {
+            return false;
+        }
+        if (!(args[2] instanceof Converter<?, ?>)) {
+            return false;
+        }
+        // 4-arg: optional int flags
+        if (args.length == 4) {
+            return args[3] instanceof Number;
+        }
+        return true;
+    }
+
+    public void addFromHook(Object... args) {
+        if (!isValidArguments(args)) {
             return;
         }
 

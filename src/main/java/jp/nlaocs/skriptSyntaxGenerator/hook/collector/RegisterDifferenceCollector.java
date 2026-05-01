@@ -16,8 +16,28 @@ public final class RegisterDifferenceCollector extends AbstractMapHookCollector<
         return INSTANCE;
     }
 
-    public void addFromHook(Object... args) {
+    @Override
+    public boolean isValidArguments(Object... args) {
         if (args == null || (args.length != 2 && args.length != 3)) {
+            return false;
+        }
+        // args[0] = Class<?> type
+        if (!(args[0] instanceof Class<?>)) {
+            return false;
+        }
+        // 2-arg: Class<?> type, Operation<?, ?, ?> operation
+        if (args.length == 2) {
+            return args[1] instanceof Operation<?, ?, ?>;
+        }
+        // 3-arg: Class<?> type, Class<?> returnType, Operation<?, ?, ?> operation
+        if (!(args[1] instanceof Class<?>)) {
+            return false;
+        }
+        return args[2] instanceof Operation<?, ?, ?>;
+    }
+
+    public void addFromHook(Object... args) {
+        if (!isValidArguments(args)) {
             return;
         }
 

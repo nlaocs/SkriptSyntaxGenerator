@@ -16,8 +16,30 @@ public final class RegisterOperationCollector extends AbstractMapHookCollector<R
         return INSTANCE;
     }
 
-    public void addFromHook(Object... args) {
+    @Override
+    public boolean isValidArguments(Object... args) {
         if (args == null || args.length != 5) {
+            return false;
+        }
+        // Check: Operator, Class, Class, Class, Operation
+        if (!(args[0] instanceof org.skriptlang.skript.lang.arithmetic.Operator)) {
+            return false;
+        }
+        if (!(args[1] instanceof Class<?>)) {
+            return false;
+        }
+        if (!(args[2] instanceof Class<?>)) {
+            return false;
+        }
+        if (!(args[3] instanceof Class<?>)) {
+            return false;
+        }
+        // args[4] is Operation - type check omitted for now
+        return true;
+    }
+
+    public void addFromHook(Object... args) {
+        if (!isValidArguments(args)) {
             return;
         }
 
