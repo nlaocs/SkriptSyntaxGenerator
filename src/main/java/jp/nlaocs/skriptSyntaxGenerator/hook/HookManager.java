@@ -17,6 +17,7 @@ public final class HookManager {
             RegisterClassHook.INSTANCE,
             RegisterComparatorHook.INSTANCE,
             RegisterDifferenceHook.INSTANCE,
+            RegisterOperatorHook.INSTANCE,
             RegisterConverterHook.INSTANCE
     );
     private Logger logger = Logger.getLogger("HookManager");
