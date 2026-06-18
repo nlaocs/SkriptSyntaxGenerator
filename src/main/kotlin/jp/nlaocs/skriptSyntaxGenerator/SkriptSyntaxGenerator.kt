@@ -151,3 +151,4 @@ class AliasesData {
 // todo tagというものがある、用途まだ不明
 // todo DefaultValue
 // todo EventValueとArithmeticsは動的に生成されている
+// todo supportedEvents....?
