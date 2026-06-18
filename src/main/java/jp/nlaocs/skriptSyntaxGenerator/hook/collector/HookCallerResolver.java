@@ -28,7 +28,7 @@ public final class HookCallerResolver {
             "org.jetbrains.",
             "net.bytebuddy.",
             "org.objectweb.",
-            "org.bukkit."
+            "org.bukkit." // bukkitがSkriptAddonを作ることを想定していないが今は保留
     };
 
     private HookCallerResolver() {
