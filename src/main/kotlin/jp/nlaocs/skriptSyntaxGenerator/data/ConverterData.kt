@@ -13,7 +13,7 @@ class ConverterData(
     val from: Class<*> = converterInfo.from
     val to: Class<*> = converterInfo.to
     val flags: Int = converterInfo.flags
-    private val converterClass: Class<*> = converterInfo.converter.javaClass
+    val converterClass: Class<*> = converterInfo.converter.javaClass
 
     @Transient
     val snapshot = RegisterConverterCollector.getInstance()

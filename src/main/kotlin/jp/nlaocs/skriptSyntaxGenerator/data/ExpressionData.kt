@@ -2,8 +2,9 @@ package jp.nlaocs.skriptSyntaxGenerator.data
 
 import ch.njol.skript.classes.Changer
 import ch.njol.skript.doc.Name
+import ch.njol.skript.expressions.base.SectionExpression
 import ch.njol.skript.registrations.Classes
-import com.google.gson.annotations.SerializedName
+import com.fasterxml.jackson.annotation.JsonValue
 import jp.nlaocs.skriptSyntaxGenerator.bytecode.ExpressionBytecodeAnalyzer
 import jp.nlaocs.skriptSyntaxGenerator.data.common.CommonSyntaxData
 import jp.nlaocs.skriptSyntaxGenerator.util.annoValue
@@ -12,6 +13,7 @@ import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
 class ExpressionData(s: DefaultSyntaxInfos.Expression<*, *>) : CommonSyntaxData(s) {
     val returnType: Class<*>? = s.returnType() // todo nullableにすべきかを調べる
+    val isSectionExpression: Boolean = SectionExpression::class.java.isAssignableFrom(s.type())
 
     @Transient
     private val returnTypeMultiplicityResult: ReturnTypeMultiplicityResult =
@@ -132,18 +134,12 @@ class ExpressionData(s: DefaultSyntaxInfos.Expression<*, *>) : CommonSyntaxData(
     }
 } // todo instanceが取得できなかった場合データの信用性が崩壊するので設計を考え直す
 
-enum class AcceptedChangersState {
-    @SerializedName("resolved")
-    RESOLVED,
-
-    @SerializedName("unresolved")
-    UNRESOLVED
+enum class AcceptedChangersState(@get:JsonValue val value: String) {
+    RESOLVED("resolved"),
+    UNRESOLVED("unresolved")
 }
 
-enum class ReturnTypeMultiplicityState {
-    @SerializedName("resolved")
-    RESOLVED,
-
-    @SerializedName("unresolved")
-    UNRESOLVED
+enum class ReturnTypeMultiplicityState(@get:JsonValue val value: String) {
+    RESOLVED("resolved"),
+    UNRESOLVED("unresolved")
 }

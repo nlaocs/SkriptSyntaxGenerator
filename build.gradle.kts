@@ -20,7 +20,7 @@ repositories {
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("com.github.SkriptLang:Skript:2.14.2")
-    implementation("com.google.code.gson:gson:2.13.2")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     implementation("net.bytebuddy:byte-buddy:1.14.10")
     implementation("net.bytebuddy:byte-buddy-agent:1.14.10")
 
@@ -42,13 +42,21 @@ tasks {
         downloadPlugins {
             //https://github.com/SkriptLang/Skript
             github("SkriptLang", "Skript", "2.14.3", "Skript-2.14.3.jar")
-            //modrinth("skbee", "3.17.1")
+            github("SkQuery", "SkQuery", "4.3.2", "SkQuery-4.3.2.jar")
+            github("sovdeeth", "skript-particle", "v1.4.1", "skript-particle-1.4.1.jar")
+            modrinth("skbee", "3.17.1")
+            modrinth("lusk", "1.3.13")
+            github("cooffeeRequired", "skJson", "5.4.1", "skjson.jar")
+
+            // 特殊な作り方をしているaddon群
+            github("SkriptLang", "skript-reflect", "v2.6.3", "skript-reflect-2.6.3.jar")
+            github("Pesekjak", "Hippo", "1.3.1", "Hippo.jar")
 
         }
     }
 
     shadowJar {
-        relocate("com.google.gson", "jp.nlaocs.skriptSyntaxGenerator.libs.gson")
+        relocate("com.fasterxml.jackson", "jp.nlaocs.skriptSyntaxGenerator.libs.jackson")
     }
 }
 

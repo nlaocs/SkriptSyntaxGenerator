@@ -9,22 +9,38 @@ import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
 
 class EventData(s: BukkitSyntaxInfos.Event<*>, addonOverride: AddonInfo? = null) : CommonSyntaxData(s, addonOverride) {
     val referenceEvents: List<Class<out Event>> = s.events().toList() // todo 本当にnullableではないのか？
-    val eventValues: List<EventValues.EventValueInfo<*, *>>? // todo nullableにすべきか
+    val eventValues: List<EventValueData>? // todo nullableにすべきか
     val cancellable: Boolean = referenceEvents
         .all { Cancellable::class.java.isAssignableFrom(it) }
     val hasOnPrefix: Boolean = s.name().startsWith("On ") // Nameで判断しているのは、Skriptが自動追加しているため。
 
     init {
         val allEventValues = EventValues.getPerEventEventValues()
-        val eventValueList = mutableListOf<EventValues.EventValueInfo<*, *>>()
+        val eventValueList = mutableListOf<EventValueData>()
         for ((eventClass, info) in allEventValues.entries()) {
             for (refEvent in referenceEvents) {
                 if (eventClass.isAssignableFrom(refEvent)) {
-                    eventValueList.add(info)
+                    eventValueList.add(EventValueData(info))
                 }
             }
 
         }
         eventValues = eventValueList.ifEmpty { null }
     }
+}
+
+data class EventValueData(
+    val eventClass: Class<out Event>,
+    val valueClass: Class<*>,
+    val time: Int,
+    val excludeErrorMessage: String?,
+    val excludes: List<Class<*>>?,
+) {
+    constructor(info: EventValues.EventValueInfo<*, *>) : this(
+        eventClass = info.eventClass(),
+        valueClass = info.valueClass(),
+        time = info.time(),
+        excludeErrorMessage = info.excludeErrorMessage(),
+        excludes = info.excludes()?.filterNotNull()?.map { it as Class<*> }
+    )
 }

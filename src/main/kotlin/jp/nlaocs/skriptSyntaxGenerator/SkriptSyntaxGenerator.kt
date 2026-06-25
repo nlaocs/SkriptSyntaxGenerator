@@ -1,22 +1,9 @@
 package jp.nlaocs.skriptSyntaxGenerator
 
-import org.bukkit.plugin.java.JavaPlugin
-
-import com.google.gson.TypeAdapter
-import jp.nlaocs.gson.RuntimeTypeAdapterFactory
 import jp.nlaocs.skriptSyntaxGenerator.generator.SyntaxDataGenerator
 import jp.nlaocs.skriptSyntaxGenerator.hook.HookManager
 import jp.nlaocs.skriptSyntaxGenerator.hook.collector.HookCollectorRegistry
-import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
-
-import org.skriptlang.skript.lang.entry.EntryData
-import org.skriptlang.skript.lang.entry.util.LiteralEntryData
-import org.skriptlang.skript.lang.entry.util.VariableStringEntryData
-import org.skriptlang.skript.lang.entry.ContainerEntryData
-import org.skriptlang.skript.lang.entry.KeyValueEntryData
-import org.skriptlang.skript.lang.entry.SectionEntryData
-import org.skriptlang.skript.lang.entry.util.ExpressionEntryData
-import org.skriptlang.skript.lang.entry.util.TriggerEntryData
+import org.bukkit.plugin.java.JavaPlugin
 
 class SkriptSyntaxGenerator : JavaPlugin() {
 
@@ -45,18 +32,6 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
         if (command.name.equals("skgen", ignoreCase = true)) {
             sender.sendMessage("Generating Skript syntax data...")
 
-            val entryDataAdapter = RuntimeTypeAdapterFactory
-                .of(EntryData::class.java, "entryDataClass")
-                .registerSubtype(LiteralEntryData::class.java)
-                .registerSubtype(VariableStringEntryData::class.java)
-                .registerSubtype(ExpressionEntryData::class.java)
-                .registerSubtype(TriggerEntryData::class.java)
-                .registerSubtype(ContainerEntryData::class.java)
-                .registerSubtype(KeyValueEntryData::class.java)
-                .registerSubtype(SectionEntryData::class.java)
-
-            val gson = GsonFactory.create()
-
             val syntaxDataGenerator = SyntaxDataGenerator()
             syntaxDataGenerator.generate()
 
@@ -67,18 +42,6 @@ class SkriptSyntaxCommandExecutor : org.bukkit.command.CommandExecutor {
         return false
     }
 }
-
-class ColorAdapter : TypeAdapter<java.awt.Color>() {
-    override fun write(out: com.google.gson.stream.JsonWriter, value: java.awt.Color) {
-        out.value(String.format("#%02x%02x%02x", value.red, value.green, value.blue))
-    }
-
-    override fun read(`in`: com.google.gson.stream.JsonReader): java.awt.Color {
-        val colorStr = `in`.nextString()
-        return java.awt.Color.decode(colorStr)
-    }
-}
-
 /*
 class AliasesData {
     /*var name: String? = null
@@ -151,7 +114,6 @@ class AliasesData {
 // todo tagというものがある、用途まだ不明
 // todo DefaultValue
 // todo EventValueとArithmeticsは動的に生成されている
-// todo supportedEvents....?
 // todo SimpleLiteralの、isSingle関連
 
 // IDが重複することがある。留意

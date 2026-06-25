@@ -15,11 +15,11 @@ import jp.nlaocs.skriptSyntaxGenerator.collector.SectionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.StructureCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.SyntaxCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.TypeCollector
-import jp.nlaocs.skriptSyntaxGenerator.serializer.GsonFactory
+import jp.nlaocs.skriptSyntaxGenerator.serializer.JacksonFactory
 import jp.nlaocs.skriptSyntaxGenerator.util.FileUtils
 
 class SyntaxDataGenerator {
-    private val gson = GsonFactory.create()
+    private val objectMapper = JacksonFactory.create()
     private val registry = Skript.instance().syntaxRegistry()
 
     private val collectors: List<SyntaxCollector<*>> = listOf(
@@ -41,7 +41,7 @@ class SyntaxDataGenerator {
     fun generate() {
         collectors.forEach { collector ->
             val data = collector.collect()
-            FileUtils.writeStringToFile(collector.fileName, gson.toJson(data))
+            FileUtils.writeStringToFile(collector.fileName, objectMapper.writeValueAsString(data))
         }
     }
 }
