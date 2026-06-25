@@ -5,6 +5,7 @@ import java.util.List;
 public final class HookCollectorRegistry {
 
     private static final List<HookCollector<?, ?, ?>> COLLECTORS = List.of(
+            RegisterEventCollector.getInstance(),
             RegisterClassCollector.getInstance(),
             RegisterComparatorCollector.getInstance(),
             RegisterOperatorCollector.getInstance(),

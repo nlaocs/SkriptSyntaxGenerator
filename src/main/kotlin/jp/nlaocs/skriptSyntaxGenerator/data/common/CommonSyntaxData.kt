@@ -11,8 +11,11 @@ import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.RequiredPlugins
 import ch.njol.skript.doc.Since
 import jp.nlaocs.skriptSyntaxGenerator.util.*
+import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
+import org.skriptlang.skript.docs.Origin
+import org.skriptlang.skript.docs.Origin.AddonOrigin
 import org.skriptlang.skript.registration.SyntaxInfo
 import org.skriptlang.skript.util.Priority
 import java.util.Locale
@@ -37,7 +40,7 @@ open class CommonSyntaxData(
     override val addon: AddonInfo
 ) : Documentable, Addon {
 
-    constructor(s: BukkitSyntaxInfos.Event<*>) : this(
+    constructor(s: BukkitSyntaxInfos.Event<*>, addonOverride: AddonInfo? = null) : this(
         name = s.name(),
         id = s.id(),
         documentationId = s.documentationId(),
@@ -53,12 +56,7 @@ open class CommonSyntaxData(
         priorityStr = s.priority().toPriorityStr(),
         priority = s.priority(),
         patterns = s.patterns().toList(),
-        addon = JavaPlugin.getProvidingPlugin(s.type()).let {
-            AddonInfo(
-                name = it.name,
-                version = it.description.version
-            )
-        }
+        addon = addonOverride ?: resolveEventAddon(s)
     )
 
     constructor(s: SyntaxInfo<*>) : this(
@@ -90,5 +88,28 @@ open class CommonSyntaxData(
             type.anno<Example>()?.let { listOf(it.value) }
                 ?: type.anno<Example.Examples>()?.let { it.value.map { ex -> ex.value } }
                         ?: type.anno<Examples>()?.value?.toList()
+    }
+
+    companion object {
+        private fun resolveEventAddon(s: BukkitSyntaxInfos.Event<*>): AddonInfo =
+            addonFromOrigin(s.origin()) ?: JavaPlugin.getProvidingPlugin(s.type()).let {
+                AddonInfo(
+                    name = it.name,
+                    version = it.description.version
+                )
+            }
+
+        private fun addonFromOrigin(origin: Origin): AddonInfo? {
+            val addon = (origin as? AddonOrigin)?.addon() ?: return null
+            val plugin = Bukkit.getPluginManager().getPlugin(addon.name())
+                ?: runCatching { JavaPlugin.getProvidingPlugin(addon.source()) }.getOrNull()
+
+            return plugin?.let {
+                AddonInfo(
+                    name = it.name,
+                    version = it.description.version
+                )
+            }
+        }
     }
 } // todo 実装が汚い気がする..

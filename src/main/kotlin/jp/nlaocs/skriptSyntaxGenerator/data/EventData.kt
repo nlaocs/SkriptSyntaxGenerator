@@ -1,12 +1,13 @@
 package jp.nlaocs.skriptSyntaxGenerator.data
 
 import ch.njol.skript.registrations.EventValues
+import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.data.common.CommonSyntaxData
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
 
-class EventData(s: BukkitSyntaxInfos.Event<*>) : CommonSyntaxData(s) {
+class EventData(s: BukkitSyntaxInfos.Event<*>, addonOverride: AddonInfo? = null) : CommonSyntaxData(s, addonOverride) {
     val referenceEvents: List<Class<out Event>> = s.events().toList() // todo 本当にnullableではないのか？
     val eventValues: List<EventValues.EventValueInfo<*, *>>? // todo nullableにすべきか
     val cancellable: Boolean = referenceEvents
