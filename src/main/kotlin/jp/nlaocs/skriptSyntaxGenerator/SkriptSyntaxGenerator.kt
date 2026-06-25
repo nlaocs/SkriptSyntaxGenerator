@@ -152,3 +152,6 @@ class AliasesData {
 // todo DefaultValue
 // todo EventValueとArithmeticsは動的に生成されている
 // todo supportedEvents....?
+// todo SimpleLiteralの、isSingle関連
+
+// IDが重複することがある。留意
