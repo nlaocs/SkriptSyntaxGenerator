@@ -24,7 +24,7 @@ inline fun <reified T : Annotation, reified V> Class<*>.annoValue(method: String
     }
 
 inline fun <reified T : Annotation, reified V> Class<*>.annoValues(method: String = "value"): List<V>? =
-    annoValue<T, Array<V>>(method)?.toList()
+    annoValue<T, Array<V>>(method).toListOrNullIfEmpty()
 
 // ------
 fun Class<*>.getTypeStr(): String = when {
@@ -50,6 +50,12 @@ fun Class<*>.toStringListSafe(): List<String> {
             .replace('_', ' ')
     }
 }
+
+fun <T> Collection<T>?.nullIfEmpty(): List<T>? =
+    this?.toList()?.ifEmpty { null }
+
+fun <T> Array<T>?.toListOrNullIfEmpty(): List<T>? =
+    this?.toList()?.ifEmpty { null }
 
 // listの中のstringをtrimして空文字のものを除外するやつ、nullのものも除外、すべて空文字の場合nullを返す
 fun List<String?>?.cleaning(): List<String?>? {

@@ -4,6 +4,7 @@ import ch.njol.skript.lang.function.Function
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Documentable
+import jp.nlaocs.skriptSyntaxGenerator.util.nullIfEmpty
 import org.bukkit.plugin.java.JavaPlugin
 import org.skriptlang.skript.common.function.Parameter
 
@@ -66,11 +67,11 @@ class FunctionData(s: Function<*>) : Documentable, Addon {
     init {
         when (s) {
             is org.skriptlang.skript.common.function.DefaultFunction<*> -> {
-                since = s.since()
-                description = s.description()
-                examples = s.examples()
-                keywords = s.keywords()
-                requires = s.requires()
+                since = s.since().nullIfEmpty()
+                description = s.description().nullIfEmpty()
+                examples = s.examples().nullIfEmpty()
+                keywords = s.keywords().nullIfEmpty()
+                requires = s.requires().nullIfEmpty()
 
                 addon = JavaPlugin.getProvidingPlugin(s.source().source()).let {
                     AddonInfo(
@@ -82,11 +83,11 @@ class FunctionData(s: Function<*>) : Documentable, Addon {
 
             // JavaFunction & SimpleJavaFunction
             is ch.njol.skript.lang.function.JavaFunction<*> -> {
-                since = s.since()
-                description = s.description()
-                examples = s.examples()
-                keywords = s.keywords()
-                requires = s.requires()
+                since = s.since().nullIfEmpty()
+                description = s.description().nullIfEmpty()
+                examples = s.examples().nullIfEmpty()
+                keywords = s.keywords().nullIfEmpty()
+                requires = s.requires().nullIfEmpty()
 
                 addon = JavaPlugin.getProvidingPlugin(s.javaClass).let {
                     AddonInfo(

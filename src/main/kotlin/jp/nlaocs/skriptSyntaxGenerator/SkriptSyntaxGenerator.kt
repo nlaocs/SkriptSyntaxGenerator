@@ -102,18 +102,13 @@ class AliasesData {
 }*/
 
 // todo addon別
-// todo json順序を逆に
 // todo typeには解析順序がある
 // todo typeのnameのgenderなどはソースコード解析時に設定されるものと思われるので構文リストに載せる必要はない
 // todo typeのcolorなどの、interfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
-// todo typeのbeforeやafter、またaliasesの定義も取得する
-// todo structuresのentryValidatorのentryDataのTypeなど、常に追加する
-// todo 要素ゼロのListはnullにする
+// todo typeのaliases定義を取得する
 // todo 過去バージョンのためalias
-// todo コンバーターも保持
 // todo tagというものがある、用途まだ不明
 // todo DefaultValue
-// todo EventValueとArithmeticsは動的に生成されている
 // todo SimpleLiteralの、isSingle関連
 
 // IDが重複することがある。留意

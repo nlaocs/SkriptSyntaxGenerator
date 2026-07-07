@@ -60,11 +60,11 @@ open class CommonSyntaxData(
         id = s.id(),
         documentationId = s.documentationId(),
         elementClass = s.type(),
-        since = s.since().toList(),
-        description = s.description().toList(),
-        examples = s.examples().toList(),
-        keywords = s.keywords().toList(),
-        requires = s.requiredPlugins().toList(),
+        since = s.since().toList().nullIfEmpty(),
+        description = s.description().toList().nullIfEmpty(),
+        examples = s.examples().toList().nullIfEmpty(),
+        keywords = s.keywords().toList().nullIfEmpty(),
+        requires = s.requiredPlugins().toList().nullIfEmpty(),
         noDoc = s.type().hasAnno<NoDoc>(),
         events = null,
         deprecated = s.type().hasAnno<Deprecated>(),
@@ -103,8 +103,8 @@ open class CommonSyntaxData(
 
         examples =
             type.anno<Example>()?.let { listOf(it.value) }
-                ?: type.anno<Example.Examples>()?.let { it.value.map { ex -> ex.value } }
-                        ?: type.anno<Examples>()?.value?.toList()
+                ?: type.anno<Example.Examples>()?.let { it.value.map { ex -> ex.value }.nullIfEmpty() }
+                        ?: type.anno<Examples>()?.value.toListOrNullIfEmpty()
     }
 
     companion object {

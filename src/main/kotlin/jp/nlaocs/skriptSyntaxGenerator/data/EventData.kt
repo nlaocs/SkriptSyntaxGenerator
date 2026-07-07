@@ -9,7 +9,7 @@ import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
 
 class EventData(s: BukkitSyntaxInfos.Event<*>, addonOverride: AddonInfo? = null) : CommonSyntaxData(s, addonOverride) {
     val referenceEvents: List<Class<out Event>> = s.events().toList() // todo 本当にnullableではないのか？
-    val eventValues: List<EventValueData>? // todo nullableにすべきか
+    val eventValues: List<EventValueData>
     val cancellable: Boolean = referenceEvents
         .all { Cancellable::class.java.isAssignableFrom(it) }
     val hasOnPrefix: Boolean = s.name().startsWith("On ") // Nameで判断しているのは、Skriptが自動追加しているため。
@@ -25,7 +25,7 @@ class EventData(s: BukkitSyntaxInfos.Event<*>, addonOverride: AddonInfo? = null)
             }
 
         }
-        eventValues = eventValueList.ifEmpty { null }
+        eventValues = eventValueList
     }
 }
 
