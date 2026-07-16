@@ -1,9 +1,12 @@
 package jp.nlaocs.skriptSyntaxGenerator
 
+import ch.njol.skript.Skript
 import jp.nlaocs.skriptSyntaxGenerator.generator.SyntaxDataGenerator
 import jp.nlaocs.skriptSyntaxGenerator.hook.HookManager
 import jp.nlaocs.skriptSyntaxGenerator.hook.collector.HookCollectorRegistry
+import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
+import java.util.logging.Level
 
 class SkriptSyntaxGenerator : JavaPlugin() {
 
@@ -14,11 +17,46 @@ class SkriptSyntaxGenerator : JavaPlugin() {
 
     override fun onEnable() {
         this.getCommand("skgen")?.setExecutor(SkriptSyntaxCommandExecutor())
+        scheduleAutomatedGeneration()
         logger.info("SkriptSyntaxGenerator has been enabled!")
     }
 
     override fun onDisable() {
         HookCollectorRegistry.clearAll()
+    }
+
+    private fun scheduleAutomatedGeneration() {
+        if (!java.lang.Boolean.getBoolean("skriptSyntaxGenerator.integration")) return
+
+        waitForSkriptRegistrations()
+    }
+
+    private fun waitForSkriptRegistrations(attempt: Int = 0) {
+        server.scheduler.runTaskLater(this, Runnable {
+            if (Skript.isAcceptRegistrations()) {
+                if (attempt >= MAX_REGISTRATION_WAIT_TICKS) {
+                    logger.severe("Timed out waiting for Skript registrations to finish.")
+                    Bukkit.shutdown()
+                } else {
+                    waitForSkriptRegistrations(attempt + 1)
+                }
+                return@Runnable
+            }
+
+            try {
+                logger.info("Starting automated Skript syntax generation...")
+                SyntaxDataGenerator().generate()
+                logger.info("Automated Skript syntax generation completed!")
+            } catch (throwable: Throwable) {
+                logger.log(Level.SEVERE, "Automated Skript syntax generation failed.", throwable)
+            } finally {
+                Bukkit.shutdown()
+            }
+        }, 1L)
+    }
+
+    companion object {
+        private const val MAX_REGISTRATION_WAIT_TICKS = 1200
     }
 }
 
