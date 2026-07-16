@@ -1,14 +1,13 @@
 package jp.nlaocs.skriptSyntaxGenerator.data
 
-import ch.njol.skript.registrations.EventValues
+import ch.njol.skript.classes.Changer.ChangeMode
+import jp.nlaocs.skriptSyntaxGenerator.compat.EventValueAdapters
+import jp.nlaocs.skriptSyntaxGenerator.compat.EventValueRecord
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.data.common.CommonSyntaxData
-import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterEventValueCollector
-import jp.nlaocs.skriptSyntaxGenerator.util.AddonResolver
 import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
 import jp.nlaocs.skriptSyntaxGenerator.util.stableName
-import org.bukkit.Bukkit
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
@@ -38,24 +37,33 @@ data class EventValueData(
     val resolutionOrder: Int,
     val registrationOrder: Int?,
     override val addon: AddonInfo,
+    val patterns: List<String>? = null,
+    val acceptedChangers: Map<ChangeMode, List<Class<*>>>? = null,
+    val contextDependent: Boolean? = null,
 ) : Addon {
     val registrationId: String = StableIds.record(
         "event-value",
         addon,
-        eventClass.stableName(),
-        valueClass.stableName(),
-        time.toString()
+        *buildList {
+            add(eventClass.stableName())
+            add(valueClass.stableName())
+            add(time.toString())
+            if (!patterns.isNullOrEmpty()) addAll(patterns)
+        }.toTypedArray()
     )
 
-    constructor(info: EventValues.EventValueInfo<*, *>, resolutionOrder: Int) : this(
-        eventClass = info.eventClass(),
-        valueClass = info.valueClass(),
-        time = info.time(),
-        excludeErrorMessage = info.excludeErrorMessage(),
-        excludes = info.excludes()?.filterNotNull()?.map { it as Class<*> },
+    constructor(record: EventValueRecord, resolutionOrder: Int) : this(
+        eventClass = record.eventClass,
+        valueClass = record.valueClass,
+        time = record.time,
+        excludeErrorMessage = record.excludeErrorMessage,
+        excludes = record.excludes,
         resolutionOrder = resolutionOrder,
-        registrationOrder = snapshotFor(info)?.registrationOrder(),
-        addon = resolveAddon(info)
+        registrationOrder = record.registrationOrder,
+        addon = record.addon,
+        patterns = record.patterns,
+        acceptedChangers = record.acceptedChangers,
+        contextDependent = record.contextDependent
     )
 
     fun isAvailableFor(referenceEvents: List<Class<out Event>>): Boolean =
@@ -65,27 +73,7 @@ data class EventValueData(
         }
 
     companion object {
-        fun collectAll(): List<EventValueData> {
-            var resolutionOrder = 0
-            return EventValues.getTimeStates().flatMap { time ->
-                EventValues.getEventValuesListForTime(time).map { info ->
-                    EventValueData(info, resolutionOrder++)
-                }
-            }
-        }
-
-        private fun snapshotFor(info: EventValues.EventValueInfo<*, *>) =
-            RegisterEventValueCollector.getInstance()
-                .snapshotFor(info.eventClass(), info.valueClass(), info.time())
-
-        private fun resolveAddon(info: EventValues.EventValueInfo<*, *>): AddonInfo {
-            snapshotFor(info)?.addon()?.let { return it }
-            AddonResolver.fromClass(info.converter().javaClass)?.let { return it }
-
-            Bukkit.getLogger().warning(
-                "EventValue ${info.eventClass().name} -> ${info.valueClass().name} does not have addon information."
-            )
-            return AddonInfo("unknown", "unknown")
-        }
+        fun collectAll(): List<EventValueData> = EventValueAdapters.collect()
+            .mapIndexed { resolutionOrder, record -> EventValueData(record, resolutionOrder) }
     }
 }

@@ -16,6 +16,7 @@ public final class HookManager {
     private final List<Hook> hooks = List.of(
             RegisterEventHook.INSTANCE,
             RegisterEventValueHook.INSTANCE,
+            RegisterModernEventValueHook.INSTANCE,
             RegisterClassHook.INSTANCE,
             RegisterComparatorHook.INSTANCE,
             RegisterDifferenceHook.INSTANCE,
