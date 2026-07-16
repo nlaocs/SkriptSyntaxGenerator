@@ -4,10 +4,13 @@ import org.bukkit.plugin.Plugin;
 import org.skriptlang.skript.lang.converter.Converter;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class RegisterConverterCollector extends AbstractMapHookCollector<RegisterConverterCollector.Registration, RegisterConverterCollector.Key, RegisterConverterCollector.Snapshot> {
 
     private static final RegisterConverterCollector INSTANCE = new RegisterConverterCollector();
+
+    private final AtomicInteger registrationOrder = new AtomicInteger();
 
     private RegisterConverterCollector() {
     }
@@ -18,24 +21,13 @@ public final class RegisterConverterCollector extends AbstractMapHookCollector<R
 
     @Override
     public boolean isValidArguments(Object... args) {
-        if (args == null || (args.length != 3 && args.length != 4)) {
+        if (args == null || args.length != 4) {
             return false;
         }
-        // args[0] = Class<?> from, args[1] = Class<?> to, args[2] = Converter<?, ?>
-        if (!(args[0] instanceof Class<?>)) {
-            return false;
-        }
-        if (!(args[1] instanceof Class<?>)) {
-            return false;
-        }
-        if (!(args[2] instanceof Converter<?, ?>)) {
-            return false;
-        }
-        // 4-arg: optional int flags
-        if (args.length == 4) {
-            return args[3] instanceof Number;
-        }
-        return true;
+        return args[0] instanceof Class<?>
+                && args[1] instanceof Class<?>
+                && args[2] instanceof Converter<?, ?>
+                && args[3] instanceof Number;
     }
 
     public void addFromHook(Object... args) {
@@ -43,21 +35,12 @@ public final class RegisterConverterCollector extends AbstractMapHookCollector<R
             return;
         }
 
-        Class<?> from = args[0] instanceof Class<?> clazz ? clazz : null;
-        Class<?> to = args[1] instanceof Class<?> clazz ? clazz : null;
-        if (from == null || to == null || !(args[2] instanceof Converter<?, ?> converter)) {
-            return;
-        }
-
-        int flags = 0;
-        if (args.length == 4) {
-            if (!(args[3] instanceof Number number)) {
-                return;
-            }
-            flags = number.intValue();
-        }
-
-        add(new Registration(from, to, converter, flags));
+        add(new Registration(
+                (Class<?>) args[0],
+                (Class<?>) args[1],
+                (Converter<?, ?>) args[2],
+                ((Number) args[3]).intValue()
+        ));
     }
 
     @Override
@@ -67,11 +50,22 @@ public final class RegisterConverterCollector extends AbstractMapHookCollector<R
 
     @Override
     protected Snapshot snapshotOf(Registration registration) {
-        return Snapshot.from(registration);
+        Plugin plugin = HookCallerResolver.resolvePlugin();
+        return new Snapshot(
+                plugin != null ? plugin.getName() : null,
+                plugin != null ? plugin.getDescription().getVersion() : null,
+                registrationOrder.getAndIncrement()
+        );
     }
 
     public Map<Key, Snapshot> getConverters() {
         return snapshotMap();
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        registrationOrder.set(0);
     }
 
     public record Registration(
@@ -91,19 +85,8 @@ public final class RegisterConverterCollector extends AbstractMapHookCollector<R
 
     public record Snapshot(
             String addonName,
-            String addonVersion
+            String addonVersion,
+            int registrationOrder
     ) {
-        static Snapshot from(Registration registration) {
-            Plugin plugin = resolvePlugin();
-            return new Snapshot(
-                    plugin != null ? plugin.getName() : null,
-                    plugin != null ? plugin.getDescription().getVersion() : null
-            );
-        }
-
-        private static Plugin resolvePlugin() {
-            return HookCallerResolver.resolvePlugin();
-        }
     }
 }
-

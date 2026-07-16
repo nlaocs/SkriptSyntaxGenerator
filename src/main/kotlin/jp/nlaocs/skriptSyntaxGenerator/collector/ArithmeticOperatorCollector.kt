@@ -7,5 +7,6 @@ class ArithmeticOperatorCollector : SyntaxCollector<List<OperatorData>> {
     override val fileName: String = "Operators.json"
 
     override fun collect(): List<OperatorData> =
-        Arithmetics.getAllOperators().map { OperatorData(it) }
+        Arithmetics.getAllOperators()
+            .mapIndexed { index, operator -> OperatorData(operator, index) }
 }

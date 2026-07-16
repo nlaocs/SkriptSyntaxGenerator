@@ -3,43 +3,39 @@ package jp.nlaocs.skriptSyntaxGenerator.data
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterConverterCollector
-import org.bukkit.Bukkit
-import org.bukkit.plugin.java.JavaPlugin
-import org.skriptlang.skript.lang.converter.ConverterInfo
+import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
+import jp.nlaocs.skriptSyntaxGenerator.util.stableName
 
-class ConverterData(
-    converterInfo: ConverterInfo<*, *>
+data class ConverterData(
+    val from: Class<*>,
+    val to: Class<*>,
+    val flags: Int,
+    val registrationOrder: Int,
+    override val addon: AddonInfo
 ) : Addon {
-    val from: Class<*> = converterInfo.from
-    val to: Class<*> = converterInfo.to
-    val flags: Int = converterInfo.flags
-    val converterClass: Class<*> = converterInfo.converter.javaClass
+    val registrationId: String = StableIds.record(
+        "converter",
+        addon,
+        from.stableName(),
+        to.stableName(),
+        flags.toString()
+    )
 
-    @Transient
-    val snapshot = RegisterConverterCollector.getInstance()
-        .snapshotMap()[RegisterConverterCollector.Key(from, to, flags)]
-
-    override val addon: AddonInfo = snapshot?.takeIf { it.addonName != null && it.addonVersion != null }
-        ?.let { AddonInfo(it.addonName, it.addonVersion) }
-        ?: resolveAddonFromClasses()
-        ?: run {
-            Bukkit.getLogger()
-                .warning("Converter $converterInfo($from -> $to, flags=$flags) does not have addon information.")
-            AddonInfo("unknown", "unknown")
-        }
-
-    private fun resolveAddonFromClasses(): AddonInfo? {
-        val candidates = listOf(converterClass, from, to)
-        for (candidate in candidates) {
-            try {
-                val plugin = JavaPlugin.getProvidingPlugin(candidate)
-                return AddonInfo(plugin.name, plugin.description.version)
-            } catch (_: IllegalArgumentException) {
+    constructor(
+        key: RegisterConverterCollector.Key,
+        snapshot: RegisterConverterCollector.Snapshot
+    ) : this(
+        from = key.from(),
+        to = key.to(),
+        flags = key.flags(),
+        registrationOrder = snapshot.registrationOrder(),
+        addon = AddonInfo(
+            requireNotNull(snapshot.addonName()) {
+                "Direct converter ${key.from().name} -> ${key.to().name} has no addon name"
+            },
+            requireNotNull(snapshot.addonVersion()) {
+                "Direct converter ${key.from().name} -> ${key.to().name} has no addon version"
             }
-        }
-        return null
-    }
+        )
+    )
 }
-
-
-

@@ -3,27 +3,36 @@ package jp.nlaocs.skriptSyntaxGenerator.data
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterDifferenceCollector
-import org.bukkit.Bukkit
-import org.skriptlang.skript.lang.arithmetic.DifferenceInfo
+import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
+import jp.nlaocs.skriptSyntaxGenerator.util.stableName
 
 data class DifferenceData(
     val type: Class<*>,
     val returnType: Class<*>,
+    val registrationOrder: Int,
+    override val addon: AddonInfo
 ) : Addon {
-    @Transient
-    val snapshot = RegisterDifferenceCollector.getInstance()
-        .snapshotMap()[RegisterDifferenceCollector.Key(type, returnType)]
+    val registrationId: String = StableIds.record(
+        "difference",
+        addon,
+        type.stableName(),
+        returnType.stableName()
+    )
 
-    override val addon: AddonInfo = if (snapshot?.addonName != null && snapshot.addonVersion != null) {
-        AddonInfo(snapshot.addonName, snapshot.addonVersion)
-    } else {
-        Bukkit.getLogger()
-            .warning("Difference $type($returnType) does not have addon information.")
-        AddonInfo("unknown", "unknown")
-    }
-
-    constructor(difference: DifferenceInfo<*, *>) : this(
-        type = difference.type(),
-        returnType = difference.returnType(),
+    constructor(
+        key: RegisterDifferenceCollector.Key,
+        snapshot: RegisterDifferenceCollector.Snapshot
+    ) : this(
+        type = key.type(),
+        returnType = key.returnType(),
+        registrationOrder = snapshot.registrationOrder(),
+        addon = AddonInfo(
+            requireNotNull(snapshot.addonName()) {
+                "Direct difference ${key.type().name} -> ${key.returnType().name} has no addon name"
+            },
+            requireNotNull(snapshot.addonVersion()) {
+                "Direct difference ${key.type().name} -> ${key.returnType().name} has no addon version"
+            }
+        )
     )
 }

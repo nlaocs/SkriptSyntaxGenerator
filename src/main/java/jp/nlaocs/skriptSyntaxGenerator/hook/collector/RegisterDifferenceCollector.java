@@ -4,10 +4,13 @@ import org.bukkit.plugin.Plugin;
 import org.skriptlang.skript.lang.arithmetic.Operation;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class RegisterDifferenceCollector extends AbstractMapHookCollector<RegisterDifferenceCollector.Registration, RegisterDifferenceCollector.Key, RegisterDifferenceCollector.Snapshot> {
 
     private static final RegisterDifferenceCollector INSTANCE = new RegisterDifferenceCollector();
+
+    private final AtomicInteger registrationOrder = new AtomicInteger();
 
     private RegisterDifferenceCollector() {
     }
@@ -18,22 +21,13 @@ public final class RegisterDifferenceCollector extends AbstractMapHookCollector<
 
     @Override
     public boolean isValidArguments(Object... args) {
-        if (args == null || (args.length != 2 && args.length != 3)) {
+        // The two-argument overload delegates to this canonical overload.
+        if (args == null || args.length != 3) {
             return false;
         }
-        // args[0] = Class<?> type
-        if (!(args[0] instanceof Class<?>)) {
-            return false;
-        }
-        // 2-arg: Class<?> type, Operation<?, ?, ?> operation
-        if (args.length == 2) {
-            return args[1] instanceof Operation<?, ?, ?>;
-        }
-        // 3-arg: Class<?> type, Class<?> returnType, Operation<?, ?, ?> operation
-        if (!(args[1] instanceof Class<?>)) {
-            return false;
-        }
-        return args[2] instanceof Operation<?, ?, ?>;
+        return args[0] instanceof Class<?>
+                && args[1] instanceof Class<?>
+                && args[2] instanceof Operation<?, ?, ?>;
     }
 
     public void addFromHook(Object... args) {
@@ -41,24 +35,9 @@ public final class RegisterDifferenceCollector extends AbstractMapHookCollector<
             return;
         }
 
-        Class<?> type = args[0] instanceof Class<?> clazz ? clazz : null;
-        if (type == null) {
-            return;
-        }
-
-        if (args.length == 2) {
-            if (!(args[1] instanceof Operation<?, ?, ?> operation)) {
-                return;
-            }
-            add(new Registration(type, type, operation));
-            return;
-        }
-
-        Class<?> returnType = args[1] instanceof Class<?> clazz ? clazz : null;
-        if (returnType == null || !(args[2] instanceof Operation<?, ?, ?> operation)) {
-            return;
-        }
-
+        Class<?> type = (Class<?>) args[0];
+        Class<?> returnType = (Class<?>) args[1];
+        Operation<?, ?, ?> operation = (Operation<?, ?, ?>) args[2];
         add(new Registration(type, returnType, operation));
     }
 
@@ -69,11 +48,22 @@ public final class RegisterDifferenceCollector extends AbstractMapHookCollector<
 
     @Override
     protected Snapshot snapshotOf(Registration registration) {
-        return Snapshot.from(registration);
+        Plugin plugin = HookCallerResolver.resolvePlugin();
+        return new Snapshot(
+                plugin != null ? plugin.getName() : null,
+                plugin != null ? plugin.getDescription().getVersion() : null,
+                registrationOrder.getAndIncrement()
+        );
     }
 
     public Map<Key, Snapshot> getDifferences() {
         return snapshotMap();
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        registrationOrder.set(0);
     }
 
     public record Registration(
@@ -91,18 +81,8 @@ public final class RegisterDifferenceCollector extends AbstractMapHookCollector<
 
     public record Snapshot(
             String addonName,
-            String addonVersion
+            String addonVersion,
+            int registrationOrder
     ) {
-        static Snapshot from(Registration registration) {
-            Plugin plugin = resolvePlugin();
-            return new Snapshot(
-                    plugin != null ? plugin.getName() : null,
-                    plugin != null ? plugin.getDescription().getVersion() : null
-            );
-        }
-
-        private static Plugin resolvePlugin() {
-            return HookCallerResolver.resolvePlugin();
-        }
     }
 }

@@ -7,9 +7,13 @@ public final class RegisterConverterAdvice {
     private RegisterConverterAdvice() {
     }
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.AllArguments final Object[] args) {
-        RegisterConverterCollector.getInstance().addFromHook(args);
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(
+            @Advice.AllArguments final Object[] args,
+            @Advice.Thrown final Throwable thrown
+    ) {
+        if (thrown == null) {
+            RegisterConverterCollector.getInstance().addFromHook(args);
+        }
     }
 }
-

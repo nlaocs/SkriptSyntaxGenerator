@@ -1,16 +1,15 @@
 package jp.nlaocs.skriptSyntaxGenerator.collector
 
-import ch.njol.skript.registrations.Classes
 import jp.nlaocs.skriptSyntaxGenerator.data.DifferenceData
-import org.skriptlang.skript.lang.arithmetic.Arithmetics
+import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterDifferenceCollector
 
-class ArithmeticDifferenceCollector : SyntaxCollector<Map<Class<*>, DifferenceData>> {
+class ArithmeticDifferenceCollector : SyntaxCollector<List<DifferenceData>> {
     override val fileName: String = "Differences.json"
 
-    override fun collect(): Map<Class<*>, DifferenceData> =
-        Classes.getClassInfos()
-            .mapNotNull { info ->
-                Arithmetics.getDifferenceInfo(info.c)?.let { info.c to DifferenceData(it) }
-            }
-            .toMap()
+    override fun collect(): List<DifferenceData> =
+        RegisterDifferenceCollector.getInstance()
+            .snapshotMap()
+            .entries
+            .map { (key, snapshot) -> DifferenceData(key, snapshot) }
+            .sortedBy { it.registrationOrder }
 }

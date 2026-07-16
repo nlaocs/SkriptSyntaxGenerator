@@ -7,8 +7,13 @@ public final class RegisterDifferenceAdvice {
     private RegisterDifferenceAdvice() {
     }
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.AllArguments final Object[] args) {
-        RegisterDifferenceCollector.getInstance().addFromHook(args);
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(
+            @Advice.AllArguments final Object[] args,
+            @Advice.Thrown final Throwable thrown
+    ) {
+        if (thrown == null) {
+            RegisterDifferenceCollector.getInstance().addFromHook(args);
+        }
     }
 }

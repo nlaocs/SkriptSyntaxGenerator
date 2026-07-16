@@ -3,11 +3,14 @@ package jp.nlaocs.skriptSyntaxGenerator.data
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterComparatorCollector
+import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
+import jp.nlaocs.skriptSyntaxGenerator.util.stableName
 import org.bukkit.Bukkit
 import org.skriptlang.skript.lang.comparator.ComparatorInfo
 
 class ComparatorData(
-    comparator: ComparatorInfo<*, *>
+    comparator: ComparatorInfo<*, *>,
+    val registrationOrder: Int
 ) : Addon {
     val firstType: Class<*> = comparator.firstType
     val secondType: Class<*> = comparator.secondType
@@ -26,4 +29,12 @@ class ComparatorData(
                 .warning("Comparator $comparator($firstType, $secondType) does not have addon information.")
             AddonInfo("unknown", "unknown")
         } // todo 実装が汚い気がする
+
+    val registrationId: String
+        get() = StableIds.record(
+            "comparator",
+            addon,
+            firstType.stableName(),
+            secondType.stableName()
+        )
 }
