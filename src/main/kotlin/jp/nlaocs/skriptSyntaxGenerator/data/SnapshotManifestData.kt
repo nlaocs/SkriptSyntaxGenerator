@@ -2,7 +2,7 @@ package jp.nlaocs.skriptSyntaxGenerator.data
 
 import ch.njol.skript.Skript
 import ch.njol.skript.localization.Language
-import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
+import jp.nlaocs.skriptSyntaxGenerator.util.SnapshotDigests
 import org.bukkit.Bukkit
 import org.bukkit.plugin.Plugin
 import java.nio.file.Files
@@ -35,17 +35,13 @@ data class SnapshotManifestData(
             val plugins = Bukkit.getPluginManager().plugins
                 .mapIndexed { index, plugin -> PluginManifestData.from(plugin, index) }
             val orderedFiles = files.sorted()
-            val snapshotId = StableIds.digest(
-                fingerprint(
-                    listOf(
-                        SCHEMA_VERSION.toString(),
-                        contentDigest,
-                        server.fingerprint(),
-                        language,
-                        fingerprint(plugins.map(PluginManifestData::fingerprint)),
-                        fingerprint(orderedFiles)
-                    )
-                )
+            val snapshotId = SnapshotDigests.snapshotId(
+                schemaVersion = SCHEMA_VERSION,
+                contentDigest = contentDigest,
+                server = server,
+                language = language,
+                plugins = plugins,
+                files = orderedFiles
             )
 
             return SnapshotManifestData(
@@ -60,8 +56,6 @@ data class SnapshotManifestData(
             )
         }
 
-        private fun fingerprint(parts: Collection<String>): String =
-            parts.joinToString("|") { part -> "${part.length}:$part" }
     }
 }
 

@@ -21,7 +21,7 @@ import jp.nlaocs.skriptSyntaxGenerator.collector.TypeCollector
 import jp.nlaocs.skriptSyntaxGenerator.data.SnapshotManifestData
 import jp.nlaocs.skriptSyntaxGenerator.serializer.JacksonFactory
 import jp.nlaocs.skriptSyntaxGenerator.util.FileUtils
-import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
+import jp.nlaocs.skriptSyntaxGenerator.util.SnapshotDigests
 
 class SyntaxDataGenerator {
     private val objectMapper = JacksonFactory.create()
@@ -55,11 +55,7 @@ class SyntaxDataGenerator {
         val serializedOutputs = outputs.mapValuesTo(linkedMapOf<String, String>()) { (_, data) ->
             objectMapper.writeValueAsString(data)
         }
-        val contentDigest = StableIds.digest(
-            serializedOutputs.entries.joinToString("|") { (fileName, json) ->
-                "${fileName.length}:$fileName${json.length}:$json"
-            }
-        )
+        val contentDigest = SnapshotDigests.contentDigest(serializedOutputs)
         val manifest = SnapshotManifestData.create(
             files = serializedOutputs.keys + "Manifest.json",
             contentDigest = contentDigest
