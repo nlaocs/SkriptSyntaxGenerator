@@ -8,5 +8,5 @@ class TypeCollector : SyntaxCollector<List<TypeData>> {
 
     override fun collect(): List<TypeData> =
         Classes.getClassInfos()
-            .map { TypeData(it) }
+            .mapIndexed { index, info -> TypeData(info, index) }
 }

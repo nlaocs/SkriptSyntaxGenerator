@@ -101,9 +101,6 @@ class AliasesData {
     }
 }*/
 
-// todo addon別
-// todo typeには解析順序がある
-// todo typeのnameのgenderなどはソースコード解析時に設定されるものと思われるので構文リストに載せる必要はない
 // todo typeのcolorなどの、interfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
 // todo typeのaliases定義を取得する
 // todo 過去バージョンのためalias
