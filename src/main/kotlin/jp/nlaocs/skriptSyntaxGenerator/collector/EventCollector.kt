@@ -1,6 +1,7 @@
 package jp.nlaocs.skriptSyntaxGenerator.collector
 
 import jp.nlaocs.skriptSyntaxGenerator.data.EventData
+import jp.nlaocs.skriptSyntaxGenerator.data.EventValueData
 import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterEventCollector
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
 import org.skriptlang.skript.registration.SyntaxRegistry
@@ -10,22 +11,30 @@ class EventCollector(private val registry: SyntaxRegistry) : SyntaxCollector<Lis
 
     override fun collect(): List<EventData> {
         val eventCollector = RegisterEventCollector.getInstance()
-        val occurrences = mutableMapOf<RegisterEventCollector.Key, Int>()
+        val hookOccurrences = mutableMapOf<RegisterEventCollector.Key, Int>()
+        val identityOccurrences = SyntaxOccurrenceTracker()
+        val eventValues = EventValueData.collectAll()
 
         return registry.syntaxes(BukkitSyntaxInfos.Event.KEY)
-            .map { event ->
+            .mapIndexed { index, event ->
                 val key = RegisterEventCollector.keyOf(
                     event.type(),
                     event.name(),
                     event.patterns(),
                     event.events()
                 )
-                val occurrence = if (key != null) occurrences.getOrDefault(key, 0) else 0
+                val hookOccurrence = if (key != null) hookOccurrences.getOrDefault(key, 0) else 0
                 if (key != null) {
-                    occurrences[key] = occurrence + 1
+                    hookOccurrences[key] = hookOccurrence + 1
                 }
 
-                EventData(event, key?.let { eventCollector.snapshotFor(it, occurrence)?.addon() })
+                EventData(
+                    event,
+                    registrationOrder = index,
+                    registrationOccurrence = identityOccurrences.next(event),
+                    addonOverride = key?.let { eventCollector.snapshotFor(it, hookOccurrence)?.addon() },
+                    allEventValues = eventValues
+                )
             }
     }
 }

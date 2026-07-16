@@ -6,7 +6,9 @@ import org.skriptlang.skript.registration.SyntaxRegistry
 class ConditionCollector(private val registry: SyntaxRegistry) : SyntaxCollector<List<ConditionData>> {
     override val fileName = "Conditions.json"
 
-    override fun collect(): List<ConditionData> =
-        registry.syntaxes(SyntaxRegistry.CONDITION)
-            .map { ConditionData(it) }
+    override fun collect(): List<ConditionData> {
+        val occurrences = SyntaxOccurrenceTracker()
+        return registry.syntaxes(SyntaxRegistry.CONDITION)
+            .mapIndexed { index, info -> ConditionData(info, index, occurrences.next(info)) }
+    }
 }

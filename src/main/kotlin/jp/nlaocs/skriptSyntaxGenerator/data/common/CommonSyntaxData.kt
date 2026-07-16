@@ -9,6 +9,7 @@ import ch.njol.skript.doc.Keywords
 import ch.njol.skript.doc.Name
 import ch.njol.skript.doc.NoDoc
 import ch.njol.skript.doc.RequiredPlugins
+import ch.njol.skript.doc.RelatedProperty
 import ch.njol.skript.doc.Since
 import ch.njol.skript.lang.EventRestrictedSyntax
 import ch.njol.skript.lang.ReturnHandler
@@ -16,10 +17,7 @@ import com.fasterxml.jackson.annotation.JsonValue
 import jp.nlaocs.skriptSyntaxGenerator.util.*
 import org.bukkit.Bukkit
 import org.bukkit.event.Event
-import org.bukkit.plugin.java.JavaPlugin
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
-import org.skriptlang.skript.docs.Origin
-import org.skriptlang.skript.docs.Origin.AddonOrigin
 import org.skriptlang.skript.lang.experiment.Experiment
 import org.skriptlang.skript.lang.experiment.ExperimentalSyntax
 import org.skriptlang.skript.lang.experiment.SimpleExperimentalSyntax
@@ -28,6 +26,9 @@ import org.skriptlang.skript.util.Priority
 import java.util.Locale
 
 open class CommonSyntaxData(
+    val kind: SyntaxKind,
+    val registrationOrder: Int,
+    @Transient private val registrationOccurrence: Int,
     override val name: String?,
     val id: String?,
     val documentationId: String?,
@@ -48,6 +49,11 @@ open class CommonSyntaxData(
     @Transient private val metadata: SyntaxMetadataBundle? = null
 ) : Documentable, Addon {
 
+    val definitionId: String = StableIds.definition(kind.value, addon, elementClass)
+    val registrationId: String =
+        StableIds.registration(definitionId, patterns, registrationOccurrence)
+    val relatedProperty: String? = elementClass.annoValue<RelatedProperty, String>()
+
     val supportedEvents: List<Class<out Event>>? = metadata?.supportedEvents?.value
     val supportedEventsState: SyntaxMetadataState? = metadata?.supportedEvents?.state
     val experimentalSyntax: ExperimentalSyntaxData? = metadata?.experimentalSyntax?.value
@@ -55,7 +61,15 @@ open class CommonSyntaxData(
     val returnHandler: ReturnHandlerData? = metadata?.returnHandler?.value
     val returnHandlerState: SyntaxMetadataState? = metadata?.returnHandler?.state
 
-    constructor(s: BukkitSyntaxInfos.Event<*>, addonOverride: AddonInfo? = null) : this(
+    constructor(
+        s: BukkitSyntaxInfos.Event<*>,
+        registrationOrder: Int,
+        registrationOccurrence: Int,
+        addonOverride: AddonInfo? = null
+    ) : this(
+        kind = SyntaxKind.EVENT,
+        registrationOrder = registrationOrder,
+        registrationOccurrence = registrationOccurrence,
         name = s.name(),
         id = s.id(),
         documentationId = s.documentationId(),
@@ -75,7 +89,15 @@ open class CommonSyntaxData(
         metadata = resolveSyntaxMetadata(s)
     )
 
-    constructor(s: SyntaxInfo<*>) : this(
+    constructor(
+        s: SyntaxInfo<*>,
+        kind: SyntaxKind,
+        registrationOrder: Int,
+        registrationOccurrence: Int
+    ) : this(
+        kind = kind,
+        registrationOrder = registrationOrder,
+        registrationOccurrence = registrationOccurrence,
         name = s.type().annoValue<Name, String>(),
         id = null,
         documentationId = s.type().annoValue<DocumentationId, String>(),
@@ -91,11 +113,8 @@ open class CommonSyntaxData(
         priorityStr = s.priority().toPriorityStr(),
         priority = s.priority(),
         patterns = s.patterns().toList(),
-        addon = JavaPlugin.getProvidingPlugin(s.type()).let {
-            AddonInfo(
-                name = it.name,
-                version = it.description.version
-            )
+        addon = requireNotNull(AddonResolver.fromClass(s.type())) {
+            "Unable to resolve addon for syntax ${s.type().name}"
         },
         metadata = resolveSyntaxMetadata(s)
     ) {
@@ -203,25 +222,10 @@ open class CommonSyntaxData(
             s.type().annoValue<Name, String>() ?: s.type().name
 
         private fun resolveEventAddon(s: BukkitSyntaxInfos.Event<*>): AddonInfo =
-            addonFromOrigin(s.origin()) ?: JavaPlugin.getProvidingPlugin(s.type()).let {
-                AddonInfo(
-                    name = it.name,
-                    version = it.description.version
-                )
-            }
-
-        private fun addonFromOrigin(origin: Origin): AddonInfo? {
-            val addon = (origin as? AddonOrigin)?.addon() ?: return null
-            val plugin = Bukkit.getPluginManager().getPlugin(addon.name())
-                ?: runCatching { JavaPlugin.getProvidingPlugin(addon.source()) }.getOrNull()
-
-            return plugin?.let {
-                AddonInfo(
-                    name = it.name,
-                    version = it.description.version
-                )
-            }
-        }
+            AddonResolver.fromOrigin(s.origin())
+                ?: requireNotNull(AddonResolver.fromClass(s.type())) {
+                    "Unable to resolve addon for event syntax ${s.type().name}"
+                }
     }
 } // todo 実装が汚い気がする..
 

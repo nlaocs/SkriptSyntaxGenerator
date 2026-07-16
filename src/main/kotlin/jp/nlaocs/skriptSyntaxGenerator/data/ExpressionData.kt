@@ -7,11 +7,16 @@ import ch.njol.skript.registrations.Classes
 import com.fasterxml.jackson.annotation.JsonValue
 import jp.nlaocs.skriptSyntaxGenerator.bytecode.ExpressionBytecodeAnalyzer
 import jp.nlaocs.skriptSyntaxGenerator.data.common.CommonSyntaxData
+import jp.nlaocs.skriptSyntaxGenerator.data.common.SyntaxKind
 import jp.nlaocs.skriptSyntaxGenerator.util.annoValue
 import org.bukkit.Bukkit
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
-class ExpressionData(s: DefaultSyntaxInfos.Expression<*, *>) : CommonSyntaxData(s) {
+class ExpressionData(
+    s: DefaultSyntaxInfos.Expression<*, *>,
+    registrationOrder: Int,
+    registrationOccurrence: Int
+) : CommonSyntaxData(s, SyntaxKind.EXPRESSION, registrationOrder, registrationOccurrence) {
     val returnType: Class<*>? = s.returnType() // todo nullableにすべきかを調べる
     val isSectionExpression: Boolean = SectionExpression::class.java.isAssignableFrom(s.type())
 

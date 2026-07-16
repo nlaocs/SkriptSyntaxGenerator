@@ -6,6 +6,7 @@ public final class HookCollectorRegistry {
 
     private static final List<HookCollector<?, ?, ?>> COLLECTORS = List.of(
             RegisterEventCollector.getInstance(),
+            RegisterEventValueCollector.getInstance(),
             RegisterClassCollector.getInstance(),
             RegisterComparatorCollector.getInstance(),
             RegisterOperatorCollector.getInstance(),

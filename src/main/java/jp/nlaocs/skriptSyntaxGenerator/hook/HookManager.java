@@ -15,6 +15,7 @@ public final class HookManager {
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final List<Hook> hooks = List.of(
             RegisterEventHook.INSTANCE,
+            RegisterEventValueHook.INSTANCE,
             RegisterClassHook.INSTANCE,
             RegisterComparatorHook.INSTANCE,
             RegisterDifferenceHook.INSTANCE,
