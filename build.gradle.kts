@@ -25,6 +25,10 @@ dependencies {
     implementation("net.bytebuddy:byte-buddy-agent:1.14.10")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+
+    testImplementation("org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
+    testImplementation("com.github.SkriptLang:Skript:2.14.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
 }
 
 tasks {
@@ -68,6 +72,10 @@ kotlin {
 
 tasks.build {
     dependsOn("shadowJar")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.processResources {
