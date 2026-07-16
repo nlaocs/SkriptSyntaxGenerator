@@ -91,90 +91,133 @@ tasks.processResources {
 
 data class IntegrationProfile(
     val id: String,
+    val taskSuffix: String,
     val minecraft: String,
     val skript: String,
+    val skriptAsset: String?,
     val java: Int,
     val status: String,
+    val eventValueMetadata: String,
+    val port: Int? = null,
     val blocker: String? = null
 )
 
 val integrationProfiles = listOf(
-    IntegrationProfile("modern-2.14.3", "1.21.11", "2.14.3", 21, "active"),
     IntegrationProfile(
-        "modern-2.15.x",
-        "current Paper",
-        "2.15.x",
+        "modern-2.14.3",
+        "Modern2143",
+        "1.21.11",
+        "2.14.3",
+        "Skript-2.14.3.jar",
         21,
-        "planned",
-        "Requires an adapter for Skript's EventValue registry API introduced after 2.14."
+        "active",
+        "legacy",
+        25596
+    ),
+    IntegrationProfile(
+        "modern-2.15.2",
+        "Modern2152",
+        "1.21.11",
+        "2.15.2",
+        "Skript-2.15.2.jar",
+        21,
+        "active",
+        "modern-2.15",
+        25597
+    ),
+    IntegrationProfile(
+        "modern-2.16.0",
+        "Modern2160",
+        "1.21.11",
+        "2.16.0",
+        "Skript-2.16.0.jar",
+        21,
+        "active",
+        "modern-2.16",
+        25598
     ),
     IntegrationProfile(
         "legacy-2.6.4",
+        "Legacy264",
         "1.12.2",
         "2.6.4",
+        null,
         8,
         "planned",
-        "Requires a Java 8 artifact and adapters for pre-SyntaxRegistry registration APIs."
+        "legacy",
+        blocker = "Requires a Java 8 artifact and adapters for pre-SyntaxRegistry registration APIs."
     ),
     IntegrationProfile(
         "legacy-1.8.8",
+        "Legacy188",
         "1.8.8",
         "final-for-1.8",
+        null,
         8,
         "planned",
-        "Requires a Java 8 artifact, a legacy Skript adapter, and a Spigot-compatible runner."
+        "legacy",
+        blocker = "Requires a Java 8 artifact, a legacy Skript adapter, and a Spigot-compatible runner."
     )
 )
 
-val modernIntegrationOutput = layout.buildDirectory.dir("integration/modern-2.14.3/snapshot")
-val modernIntegrationServer = layout.buildDirectory.dir("integration/modern-2.14.3/server")
+val activeIntegrationValidations = integrationProfiles
+    .filter { it.status == "active" }
+    .map { profile ->
+        val output = layout.buildDirectory.dir("integration/${profile.id}/snapshot")
+        val server = layout.buildDirectory.dir("integration/${profile.id}/server")
+        val runTask = tasks.register<RunServer>("runIntegration${profile.taskSuffix}") {
+            group = "verification"
+            description =
+                "Runs Paper ${profile.minecraft} with Skript ${profile.skript} and generates a syntax snapshot."
+            dependsOn(tasks.shadowJar)
 
-val runIntegrationModern2143 by tasks.registering(RunServer::class) {
-    group = "verification"
-    description = "Runs Paper 1.21.11 with Skript 2.14.3 and generates a syntax snapshot."
-    dependsOn(tasks.shadowJar)
+            minecraftVersion(profile.minecraft)
+            runDirectory.set(server)
+            pluginJars(tasks.shadowJar.flatMap { it.archiveFile })
+            javaLauncher = project.javaToolchains.launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(profile.java))
+            }
+            jvmArgs("-XX:+EnableDynamicAgentLoading")
+            systemProperty("skriptSyntaxGenerator.integration", "true")
+            systemProperty(
+                "skriptSyntaxGenerator.outputDirectory",
+                output.get().asFile.absolutePath
+            )
+            args("--port", requireNotNull(profile.port).toString())
+            downloadPlugins {
+                github(
+                    "SkriptLang",
+                    "Skript",
+                    profile.skript,
+                    requireNotNull(profile.skriptAsset)
+                )
+            }
 
-    minecraftVersion("1.21.11")
-    runDirectory.set(modernIntegrationServer)
-    pluginJars(tasks.shadowJar.flatMap { it.archiveFile })
-    javaLauncher = project.javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(21))
+            doFirst {
+                project.delete(output)
+                project.delete(server)
+                server.get().asFile.mkdirs()
+                server.get().file("eula.txt").asFile.writeText("eula=true\n")
+            }
+        }
+
+        tasks.register<JavaExec>("validateIntegration${profile.taskSuffix}") {
+            group = "verification"
+            description = "Validates the generated Skript ${profile.skript} integration snapshot."
+            dependsOn(runTask, tasks.testClasses)
+            classpath = sourceSets.test.get().runtimeClasspath
+            javaLauncher.set(project.javaToolchains.launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(profile.java))
+            })
+            mainClass.set("jp.nlaocs.skriptSyntaxGenerator.integration.SnapshotValidatorMain")
+            args(output.get().asFile.absolutePath, profile.eventValueMetadata)
+        }
     }
-    jvmArgs("-XX:+EnableDynamicAgentLoading")
-    systemProperty("skriptSyntaxGenerator.integration", "true")
-    systemProperty(
-        "skriptSyntaxGenerator.outputDirectory",
-        modernIntegrationOutput.get().asFile.absolutePath
-    )
-    args("--port", "25596")
-    downloadPlugins {
-        github("SkriptLang", "Skript", "2.14.3", "Skript-2.14.3.jar")
-    }
-
-    doFirst {
-        delete(modernIntegrationOutput)
-        delete(modernIntegrationServer)
-        modernIntegrationServer.get().asFile.mkdirs()
-        modernIntegrationServer.get().file("eula.txt").asFile.writeText("eula=true\n")
-    }
-}
-
-val validateIntegrationModern2143 by tasks.registering(JavaExec::class) {
-    group = "verification"
-    description = "Validates the generated Skript 2.14.3 integration snapshot."
-    dependsOn(runIntegrationModern2143, tasks.testClasses)
-    classpath = sourceSets.test.get().runtimeClasspath
-    javaLauncher.set(project.javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    })
-    mainClass.set("jp.nlaocs.skriptSyntaxGenerator.integration.SnapshotValidatorMain")
-    args(modernIntegrationOutput.get().asFile.absolutePath)
-}
 
 tasks.register("integrationTest") {
     group = "verification"
     description = "Runs unit tests and all active server integration profiles."
-    dependsOn(tasks.test, validateIntegrationModern2143)
+    dependsOn(tasks.test, activeIntegrationValidations)
 }
 
 tasks.register("integrationMatrix") {

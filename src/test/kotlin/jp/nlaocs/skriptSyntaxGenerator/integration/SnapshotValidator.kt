@@ -59,7 +59,10 @@ object SnapshotValidator {
         "Structures.json"
     )
 
-    fun validate(directory: Path): SnapshotValidationReport {
+    fun validate(
+        directory: Path,
+        expectedEventValueMetadata: String? = null
+    ): SnapshotValidationReport {
         val errors = mutableListOf<String>()
         require(directory.isDirectory()) { "Snapshot directory does not exist: $directory" }
 
@@ -117,6 +120,11 @@ object SnapshotValidator {
         documents.forEach { (fileName, root) -> validateProviders(root, fileName, errors) }
         validateTypeReferences(documents, errors)
         validateEventValueReferences(documents, errors)
+        validateEventValueMetadata(
+            documents.getValue("EventValues.json"),
+            expectedEventValueMetadata,
+            errors
+        )
         validateClassHierarchy(documents.getValue("ClassHierarchy.json"), errors)
 
         if (errors.isNotEmpty()) {
@@ -274,6 +282,55 @@ object SnapshotValidator {
         }
     }
 
+    private fun validateEventValueMetadata(
+        eventValues: JsonNode,
+        expected: String?,
+        errors: MutableList<String>
+    ) {
+        if (expected == null) return
+
+        eventValues.forEachIndexed { index, eventValue ->
+            expect(eventValue["registrationOrder"]?.isIntegralNumber == true, errors) {
+                "EventValues.json[$index] is missing registrationOrder"
+            }
+            when (expected) {
+                "legacy" -> {
+                    expect(!eventValue.has("patterns"), errors) {
+                        "EventValues.json[$index] unexpectedly contains modern patterns"
+                    }
+                    expect(!eventValue.has("acceptedChangers"), errors) {
+                        "EventValues.json[$index] unexpectedly contains modern acceptedChangers"
+                    }
+                    expect(!eventValue.has("contextDependent"), errors) {
+                        "EventValues.json[$index] unexpectedly contains modern contextDependent"
+                    }
+                }
+                "modern-2.15" -> {
+                    expect(eventValue["patterns"]?.isArray == true, errors) {
+                        "EventValues.json[$index] is missing modern patterns"
+                    }
+                    expect(eventValue["acceptedChangers"]?.isObject == true, errors) {
+                        "EventValues.json[$index] is missing modern acceptedChangers"
+                    }
+                    expect(!eventValue.has("contextDependent"), errors) {
+                        "EventValues.json[$index] contains 2.16-only contextDependent"
+                    }
+                }
+                "modern-2.16" -> {
+                    expect(eventValue["patterns"]?.isArray == true, errors) {
+                        "EventValues.json[$index] is missing modern patterns"
+                    }
+                    expect(eventValue["acceptedChangers"]?.isObject == true, errors) {
+                        "EventValues.json[$index] is missing modern acceptedChangers"
+                    }
+                    expect(eventValue["contextDependent"]?.isBoolean == true, errors) {
+                        "EventValues.json[$index] is missing modern contextDependent"
+                    }
+                }
+                else -> errors += "Unknown EventValue metadata expectation: $expected"
+            }
+        }
+    }
     private fun validateClassHierarchy(classes: JsonNode, errors: MutableList<String>) {
         val names = classes.mapNotNull { it["name"]?.asText() }
         expect(names == names.sorted(), errors) { "ClassHierarchy names are not sorted" }
@@ -311,8 +368,10 @@ object SnapshotValidator {
 object SnapshotValidatorMain {
     @JvmStatic
     fun main(args: Array<String>) {
-        require(args.size == 1) { "Usage: SnapshotValidatorMain <snapshot-directory>" }
-        val report = SnapshotValidator.validate(Path.of(args.single()))
+        require(args.size in 1..2) {
+            "Usage: SnapshotValidatorMain <snapshot-directory> [event-value-metadata]"
+        }
+        val report = SnapshotValidator.validate(Path.of(args[0]), args.getOrNull(1))
         println(
             "Validated ${report.files} files, ${report.registrations} registrations, " +
                 "${report.types} types, ${report.eventValues} event values, and ${report.classes} classes."

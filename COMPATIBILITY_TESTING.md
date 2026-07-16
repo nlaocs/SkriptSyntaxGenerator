@@ -18,7 +18,8 @@ They do not modify the normal `run` directory.
 | Profile | Minecraft | Skript | Java | State |
 | --- | --- | --- | --- | --- |
 | `modern-2.14.3` | 1.21.11 | 2.14.3 | 21 | Active |
-| `modern-2.15.x` | Current Paper | 2.15.x | 21 | Planned: new EventValue registry adapter |
+| `modern-2.15.2` | 1.21.11 | 2.15.2 | 21 | Active |
+| `modern-2.16.0` | 1.21.11 | 2.16.0 | 21 | Active |
 | `legacy-2.6.4` | 1.12.2 | 2.6.4 | 8 | Planned: Java 8 artifact and legacy registration adapter |
 | `legacy-1.8.8` | 1.8.8 | `final-for-1.8` | 8 | Planned: Java 8 artifact, legacy adapter, and Spigot runner |
 
@@ -48,7 +49,7 @@ Supporting older families therefore requires a multi-artifact design:
 
 1. Keep snapshot DTOs, stable IDs, digesting, and validation version-neutral.
 2. Move Skript registry access behind a small adapter contract.
-3. Build a modern adapter for the 2.14 registry family and a separate adapter for 2.15+.
+3. Keep the typed 2.14 EventValue adapter and reflective 2.15+ adapter behind one DTO contract.
 4. Build a Java 8 legacy artifact for Skript 2.6.4 and pre-registry APIs.
 5. Add a dedicated 1.8.8 adapter and Spigot-compatible server runner for the archived 1.8 fork.
 
