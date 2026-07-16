@@ -4,11 +4,13 @@ import ch.njol.skript.lang.function.Function
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Documentable
+import jp.nlaocs.skriptSyntaxGenerator.util.AddonResolver
+import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
 import jp.nlaocs.skriptSyntaxGenerator.util.nullIfEmpty
-import org.bukkit.plugin.java.JavaPlugin
+import jp.nlaocs.skriptSyntaxGenerator.util.stableName
 import org.skriptlang.skript.common.function.Parameter
 
-class FunctionData(s: Function<*>) : Documentable, Addon {
+class FunctionData(s: Function<*>, val registrationOrder: Int) : Documentable, Addon {
     override val name: String? = s.name
     override val description: List<String>?
     override val since: List<String>?
@@ -20,6 +22,20 @@ class FunctionData(s: Function<*>) : Documentable, Addon {
     val parameters: List<ParameterInfo> = s.signature.parameters().all().map { ParameterInfo(it) }.toList()
 
     override val addon: AddonInfo
+
+    val definitionId: String
+        get() = StableIds.record("function", addon, name.orEmpty())
+    val registrationId: String
+        get() = StableIds.record(
+            "function",
+            addon,
+            name.orEmpty(),
+            parameters.joinToString(";") {
+                "${it.name}:${it.type.stableName()}:${it.isSingle}:${it.modifiers.joinToString(",") { modifier -> modifier.type }}"
+            },
+            returnType?.stableName().orEmpty(),
+            returnTypeIsSingle.toString()
+        )
 
     data class ParameterInfo(
         val name: String,
@@ -73,12 +89,7 @@ class FunctionData(s: Function<*>) : Documentable, Addon {
                 keywords = s.keywords().nullIfEmpty()
                 requires = s.requires().nullIfEmpty()
 
-                addon = JavaPlugin.getProvidingPlugin(s.source().source()).let {
-                    AddonInfo(
-                        name = it.name,
-                        version = it.description.version
-                    )
-                }
+                addon = AddonResolver.fromSkriptAddon(s.source())
             }
 
             // JavaFunction & SimpleJavaFunction
@@ -89,11 +100,8 @@ class FunctionData(s: Function<*>) : Documentable, Addon {
                 keywords = s.keywords().nullIfEmpty()
                 requires = s.requires().nullIfEmpty()
 
-                addon = JavaPlugin.getProvidingPlugin(s.javaClass).let {
-                    AddonInfo(
-                        name = it.name,
-                        version = it.description.version
-                    )
+                addon = requireNotNull(AddonResolver.fromClass(s.javaClass)) {
+                    "Unable to resolve addon for function " + s.name
                 }
             }
 

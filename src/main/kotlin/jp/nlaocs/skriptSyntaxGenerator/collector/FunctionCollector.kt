@@ -8,5 +8,5 @@ class FunctionCollector : SyntaxCollector<List<FunctionData>> {
 
     override fun collect(): List<FunctionData> =
         Functions.getFunctions()
-            .map { FunctionData(it) }
+            .mapIndexed { index, function -> FunctionData(function, index) }
 }
