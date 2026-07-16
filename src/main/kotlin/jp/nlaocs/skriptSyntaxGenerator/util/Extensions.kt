@@ -42,6 +42,9 @@ fun Class<*>.getTypeStr(): String = when {
     else -> "Class"
 }
 
+fun Class<*>.stableName(): String =
+    if (isArray) "${componentType.stableName()}[]" else name
+
 fun Class<*>.toStringListSafe(): List<String> {
     if (!isEnum) return emptyList()
     return (enumConstants as Array<Enum<*>>).map { constant ->
@@ -60,7 +63,7 @@ fun <T> Array<T>?.toListOrNullIfEmpty(): List<T>? =
 // listの中のstringをtrimして空文字のものを除外するやつ、nullのものも除外、すべて空文字の場合nullを返す
 fun List<String?>?.cleaning(): List<String?>? {
     if (this == null) return null
-    val cleaned = this.mapNotNull { it?.trim()?.takeIf { it.isNotEmpty() } }
+    val cleaned = this.mapNotNull { it?.trim()?.takeIf { value -> value.isNotEmpty() } }
     return cleaned.ifEmpty { null }
 }
 

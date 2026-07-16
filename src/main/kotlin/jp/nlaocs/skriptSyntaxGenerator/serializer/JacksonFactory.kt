@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
+import jp.nlaocs.skriptSyntaxGenerator.util.stableName
 import org.skriptlang.skript.util.Priority
 import java.util.regex.Pattern
 
@@ -34,13 +35,13 @@ object JacksonFactory {
 
     private class ClassSerializer : JsonSerializer<Class<*>>() {
         override fun serialize(value: Class<*>, gen: JsonGenerator, serializers: SerializerProvider) {
-            gen.writeString(value.toString())
+            gen.writeString(value.stableName())
         }
     }
 
     private class ClassKeySerializer : JsonSerializer<Class<*>>() {
         override fun serialize(value: Class<*>, gen: JsonGenerator, serializers: SerializerProvider) {
-            gen.writeFieldName(value.toString())
+            gen.writeFieldName(value.stableName())
         }
     }
 
@@ -58,6 +59,7 @@ object JacksonFactory {
             gen.writeStringField("singular", value.singular)
             gen.writeStringField("plural", value.plural)
             gen.writeNumberField("gender", value.gender)
+            gen.writeStringField("genderId", Noun.getGenderID(value.gender))
             gen.writeEndObject()
         }
     }
