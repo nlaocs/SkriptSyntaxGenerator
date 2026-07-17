@@ -1,6 +1,10 @@
 # SkriptSyntaxGenerator
 
+English | [日本語](README_JA.md)
+
 Generates a server-specific Skript syntax snapshot for LSP and tooling use. The snapshot records the active Skript version, server, plugins, registration order, capabilities, and 17 data files behind a stable schema.
+
+For a field-by-field description of every generated file, including nullability, value ranges, concepts, and version differences, see the [snapshot JSON format reference](docs/json-format.md).
 
 ## Generator artifacts
 
