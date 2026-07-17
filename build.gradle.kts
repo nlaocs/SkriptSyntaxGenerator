@@ -100,6 +100,9 @@ data class ServerJarRequirement(
 val paper1122 = ServerJarRequirement("skriptSyntaxGenerator.paper1122Jar", "PAPER_1122_JAR")
 val paper1202 = ServerJarRequirement("skriptSyntaxGenerator.paper1202Jar", "PAPER_1202_JAR")
 val paper121 = ServerJarRequirement("skriptSyntaxGenerator.paper121Jar", "PAPER_121_JAR")
+val dummyAddonVersion = providers.gradleProperty("skriptSyntaxGenerator.dummyAddonVersion")
+    .orElse("1.0.0")
+    .get()
 
 data class IntegrationProfile(
     val id: String,
@@ -241,6 +244,8 @@ val activeIntegrationValidations = integrationProfiles
             javaLauncher = project.javaToolchains.launcherFor {
                 languageVersion.set(JavaLanguageVersion.of(profile.java))
             }
+            minHeapSize = "256M"
+            maxHeapSize = "1G"
             if (profile.java >= 21) {
                 jvmArgs("-XX:+EnableDynamicAgentLoading")
             }
@@ -256,6 +261,12 @@ val activeIntegrationValidations = integrationProfiles
                     "Skript",
                     profile.skript,
                     profile.skriptAsset
+                )
+                github(
+                    "nlaocs",
+                    "SkriptDummyAddon",
+                    dummyAddonVersion,
+                    "SkriptDummyAddon-$dummyAddonVersion-skript-${profile.skript}.jar"
                 )
             }
 
@@ -293,7 +304,9 @@ val activeIntegrationValidations = integrationProfiles
                 profile.syntaxApi,
                 profile.minecraft,
                 profile.skript,
-                profile.requiredNonEmptyFiles.sorted().joinToString(",")
+                profile.requiredNonEmptyFiles.sorted().joinToString(","),
+                server.get().dir("plugins").asFile.absolutePath,
+                dummyAddonVersion
             )
         }
     }

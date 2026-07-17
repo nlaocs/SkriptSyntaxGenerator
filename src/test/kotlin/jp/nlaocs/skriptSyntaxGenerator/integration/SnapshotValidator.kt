@@ -26,7 +26,8 @@ data class SnapshotValidationReport(
     val registrations: Int,
     val types: Int,
     val eventValues: Int,
-    val classes: Int
+    val classes: Int,
+    val fixtureAssertions: Int
 )
 
 object SnapshotValidator {
@@ -54,7 +55,9 @@ object SnapshotValidator {
         expectedSyntaxApi: String? = null,
         expectedMinecraftVersion: String? = null,
         expectedSkriptVersion: String? = null,
-        expectedNonEmptyFiles: Set<String> = emptySet()
+        expectedNonEmptyFiles: Set<String> = emptySet(),
+        fixturePluginsDirectory: Path? = null,
+        expectedFixtureAddonVersion: String? = null
     ): SnapshotValidationReport {
         val errors = mutableListOf<String>()
         require(directory.isDirectory()) { "Snapshot directory does not exist: $directory" }
@@ -117,6 +120,7 @@ object SnapshotValidator {
             expectedSyntaxApi,
             expectedMinecraftVersion,
             expectedSkriptVersion,
+            expectedFixtureAddonVersion,
             errors
         )
 
@@ -167,6 +171,24 @@ object SnapshotValidator {
             )
         }
 
+        val fixtureReport = fixturePluginsDirectory?.let { pluginsDirectory ->
+            requireNotNull(expectedSkriptVersion) {
+                "expectedSkriptVersion is required when fixture catalog validation is enabled"
+            }
+            FixtureCatalogValidator.validate(
+                documents,
+                pluginsDirectory,
+                expectedSkriptVersion,
+                FixtureCatalogCapabilities(
+                    expressionImplementationMetadata = expectedSyntaxApi != "legacy-static",
+                    typeRegistrationOrdering = expectedSyntaxApi != "legacy-static"
+                )
+            )
+        }
+        require(expectedFixtureAddonVersion == null || fixtureReport != null) {
+            "fixturePluginsDirectory is required when expectedFixtureAddonVersion is set"
+        }
+
         return SnapshotValidationReport(
             directory = directory,
             files = actualFiles.size,
@@ -174,7 +196,8 @@ object SnapshotValidator {
             registrations = registrationNodes.size,
             types = documents.getValue("Types.json").size(),
             eventValues = documents.getValue("EventValues.json").size(),
-            classes = documents.getValue("ClassHierarchy.json").size()
+            classes = documents.getValue("ClassHierarchy.json").size(),
+            fixtureAssertions = fixtureReport?.assertions ?: 0
         )
     }
 
@@ -307,6 +330,7 @@ object SnapshotValidator {
         expectedSyntaxApi: String?,
         expectedMinecraftVersion: String?,
         expectedSkriptVersion: String?,
+        expectedFixtureAddonVersion: String?,
         errors: MutableList<String>
     ) {
         expectedEventValueMetadata?.let { expectedShape ->
@@ -333,6 +357,17 @@ object SnapshotValidator {
                 ?.requiredText("version")
             expect(actual == expected, errors) {
                 "Manifest Skript version does not match profile: expected=$expected, actual=$actual"
+            }
+        }
+        expectedFixtureAddonVersion?.let { expected ->
+            val plugin = manifest["plugins"]
+                ?.firstOrNull { it.requiredText("name") == "SkriptDummyAddon" }
+            val actual = plugin?.requiredText("version")
+            expect(plugin?.get("enabled")?.asBoolean() == true, errors) {
+                "Enabled SkriptDummyAddon plugin is missing from Manifest"
+            }
+            expect(actual == expected, errors) {
+                "Manifest SkriptDummyAddon version does not match profile: expected=$expected, actual=$actual"
             }
         }
     }
@@ -566,9 +601,10 @@ object SnapshotValidator {
 object SnapshotValidatorMain {
     @JvmStatic
     fun main(args: Array<String>) {
-        require(args.size in 1..6) {
+        require(args.size in 1..8) {
             "Usage: SnapshotValidatorMain <snapshot-directory> [event-value-api] [syntax-api] " +
-                "[minecraft-version] [skript-version] [non-empty-files]"
+                "[minecraft-version] [skript-version] [non-empty-files] " +
+                "[fixture-plugins-directory] [fixture-addon-version]"
         }
         val report = SnapshotValidator.validate(
             Path.of(args[0]),
@@ -580,11 +616,14 @@ object SnapshotValidatorMain {
                 ?.split(",")
                 ?.filter(String::isNotBlank)
                 ?.toSet()
-                .orEmpty()
+                .orEmpty(),
+            args.getOrNull(6)?.let(Path::of),
+            args.getOrNull(7)
         )
         println(
             "Validated ${report.files} files, ${report.aliases} aliases, ${report.registrations} registrations, " +
-                "${report.types} types, ${report.eventValues} event values, and ${report.classes} classes."
+                "${report.types} types, ${report.eventValues} event values, ${report.classes} classes, and " +
+                "${report.fixtureAssertions} fixture assertions."
         )
     }
 }
