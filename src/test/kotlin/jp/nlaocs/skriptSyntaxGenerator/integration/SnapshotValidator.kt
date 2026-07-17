@@ -2,8 +2,14 @@ package jp.nlaocs.skriptSyntaxGenerator.integration
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import jp.nlaocs.skriptSyntaxGenerator.data.AliasesCapabilitiesData
+import jp.nlaocs.skriptSyntaxGenerator.data.EventValueApi
 import jp.nlaocs.skriptSyntaxGenerator.data.PluginManifestData
 import jp.nlaocs.skriptSyntaxGenerator.data.ServerManifestData
+import jp.nlaocs.skriptSyntaxGenerator.data.SnapshotCapabilitiesData
+import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxApi
+import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxKindCapabilitiesData
+import jp.nlaocs.skriptSyntaxGenerator.generator.SnapshotFormat
 import jp.nlaocs.skriptSyntaxGenerator.util.SnapshotDigests
 import java.nio.file.Files
 import java.nio.file.Path
@@ -16,6 +22,7 @@ import kotlin.io.path.readText
 data class SnapshotValidationReport(
     val directory: Path,
     val files: Int,
+    val aliases: Int,
     val registrations: Int,
     val types: Int,
     val eventValues: Int,
@@ -25,25 +32,7 @@ data class SnapshotValidationReport(
 object SnapshotValidator {
     private val objectMapper = ObjectMapper()
 
-    private val requiredFiles = setOf(
-        "ClassHierarchy.json",
-        "Comparators.json",
-        "Conditions.json",
-        "Converters.json",
-        "Differences.json",
-        "Effects.json",
-        "EventValues.json",
-        "Events.json",
-        "Expressions.json",
-        "Functions.json",
-        "Manifest.json",
-        "Operations.json",
-        "Operators.json",
-        "Properties.json",
-        "Sections.json",
-        "Structures.json",
-        "Types.json"
-    )
+    private val requiredFiles = SnapshotFormat.getAllFiles().toSet()
 
     private val registrationOrderFiles = setOf(
         "Comparators.json",
@@ -61,7 +50,11 @@ object SnapshotValidator {
 
     fun validate(
         directory: Path,
-        expectedEventValueMetadata: String? = null
+        expectedEventValueMetadata: String? = null,
+        expectedSyntaxApi: String? = null,
+        expectedMinecraftVersion: String? = null,
+        expectedSkriptVersion: String? = null,
+        expectedNonEmptyFiles: Set<String> = emptySet()
     ): SnapshotValidationReport {
         val errors = mutableListOf<String>()
         require(directory.isDirectory()) { "Snapshot directory does not exist: $directory" }
@@ -88,20 +81,54 @@ object SnapshotValidator {
 
         failIfAny(errors)
 
-        (requiredFiles - setOf("Manifest.json", "Operations.json")).forEach { fileName ->
+        (requiredFiles - setOf("Manifest.json", "Operations.json", "Aliases.json")).forEach { fileName ->
             expect(documents.getValue(fileName).isArray, errors) { "$fileName root must be an array" }
         }
         expect(documents.getValue("Operations.json").isObject, errors) {
             "Operations.json root must be an object"
+        }
+        expect(documents.getValue("Aliases.json").isObject, errors) {
+            "Aliases.json root must be an object"
         }
         expect(documents.getValue("Manifest.json").isObject, errors) {
             "Manifest.json root must be an object"
         }
         failIfAny(errors)
 
+        expectedNonEmptyFiles.forEach { fileName ->
+            val document = documents[fileName]
+            expect(document != null, errors) {
+                "Required non-empty file is not part of the snapshot contract: $fileName"
+            }
+            if (document != null) {
+                val size = when (fileName) {
+                    "Operations.json" -> flattenObjectArrays(document).size
+                    "Aliases.json" -> document["aliases"]?.size() ?: 0
+                    else -> document.size()
+                }
+                expect(size > 0, errors) { "$fileName must not be empty for this compatibility profile" }
+            }
+        }
         val manifest = documents.getValue("Manifest.json")
         validateManifest(manifest, rawFiles, errors)
+        validateExpectedManifest(
+            manifest,
+            expectedEventValueMetadata,
+            expectedSyntaxApi,
+            expectedMinecraftVersion,
+            expectedSkriptVersion,
+            errors
+        )
 
+        if ("Aliases.json" in expectedNonEmptyFiles) {
+            val aliases = manifest["capabilities"]?.get("aliases")
+            expect(aliases?.get("supported")?.asBoolean() == true, errors) {
+                "Manifest global aliases are not supported for this compatibility profile"
+            }
+            expect(aliases?.get("collected")?.asBoolean() == true, errors) {
+                "Manifest global aliases were not collected for this compatibility profile"
+            }
+        }
         registrationOrderFiles.forEach { fileName ->
             validateSequentialOrder(documents.getValue(fileName), "registrationOrder", fileName, errors)
         }
@@ -117,7 +144,10 @@ object SnapshotValidator {
             addAll(documents.getValue("Properties.json"))
         }
         validateRegistrationIds(registrationNodes, errors)
-        documents.forEach { (fileName, root) -> validateProviders(root, fileName, errors) }
+        documents.filterKeys { it != "Aliases.json" }.forEach { (fileName, root) ->
+            validateProviders(root, fileName, errors)
+        }
+        validateAliases(documents.getValue("Aliases.json"), errors)
         validateTypeReferences(documents, errors)
         validateEventValueReferences(documents, errors)
         validateEventValueMetadata(
@@ -140,6 +170,7 @@ object SnapshotValidator {
         return SnapshotValidationReport(
             directory = directory,
             files = actualFiles.size,
+            aliases = documents.getValue("Aliases.json")["aliases"]?.size() ?: 0,
             registrations = registrationNodes.size,
             types = documents.getValue("Types.json").size(),
             eventValues = documents.getValue("EventValues.json").size(),
@@ -155,7 +186,9 @@ object SnapshotValidator {
         val declaredFiles = manifest["files"]?.map(JsonNode::asText).orEmpty()
         expect(declaredFiles == declaredFiles.sorted(), errors) { "Manifest files are not sorted" }
         expect(declaredFiles.toSet() == requiredFiles, errors) { "Manifest files do not match the snapshot files" }
-        expect(manifest["schemaVersion"]?.asInt() == 1, errors) { "Unsupported or missing schemaVersion" }
+        expect(manifest["schemaVersion"]?.asInt() == SnapshotFormat.SCHEMA_VERSION, errors) {
+            "Unsupported or missing schemaVersion"
+        }
         runCatching { Instant.parse(manifest.requiredText("generatedAt")) }
             .onFailure { errors += "Manifest generatedAt is not an ISO-8601 instant" }
 
@@ -193,6 +226,7 @@ object SnapshotValidator {
         expect(plugins.any { it.name == "SkriptSyntaxGenerator" && it.enabled }, errors) {
             "Enabled SkriptSyntaxGenerator plugin is missing from Manifest"
         }
+        val capabilities = parseCapabilities(manifest["capabilities"], errors)
 
         val snapshotId = SnapshotDigests.snapshotId(
             schemaVersion = manifest["schemaVersion"]?.asInt() ?: -1,
@@ -200,12 +234,112 @@ object SnapshotValidator {
             server = server,
             language = manifest.requiredText("language"),
             plugins = plugins,
+            capabilities = capabilities,
             files = declaredFiles
         )
         expect(manifest.requiredText("snapshotId") == snapshotId, errors) {
             "Manifest snapshotId cannot be reproduced"
         }
     }
+
+    private fun parseCapabilities(
+        node: JsonNode?,
+        errors: MutableList<String>
+    ): SnapshotCapabilitiesData {
+        val capabilities = node ?: objectMapper.nullNode()
+        val syntaxApi = enumValue<SyntaxApi>(capabilities.requiredText("syntaxApi")) { it.serializedName }
+        val eventValueApi = enumValue<EventValueApi>(capabilities.requiredText("eventValueApi")) {
+            it.serializedName
+        }
+        expect(syntaxApi != null, errors) { "Manifest capabilities.syntaxApi is invalid" }
+        expect(eventValueApi != null, errors) { "Manifest capabilities.eventValueApi is invalid" }
+
+        val kinds = capabilities["syntaxKinds"] ?: objectMapper.nullNode()
+        fun requiredBoolean(field: String): Boolean {
+            val value = kinds[field]
+            expect(value?.isBoolean == true, errors) {
+                "Manifest capabilities.syntaxKinds.$field must be a boolean"
+            }
+            return value?.asBoolean() ?: false
+        }
+        val syntaxKinds = SyntaxKindCapabilitiesData(
+            requiredBoolean("conditions"),
+            requiredBoolean("effects"),
+            requiredBoolean("events"),
+            requiredBoolean("expressions"),
+            requiredBoolean("types"),
+            requiredBoolean("functions"),
+            requiredBoolean("sections"),
+            requiredBoolean("structures"),
+            requiredBoolean("properties"),
+            requiredBoolean("arithmetic"),
+            requiredBoolean("converters"),
+            requiredBoolean("comparators"),
+            requiredBoolean("eventValues")
+        )
+
+        val aliases = capabilities["aliases"] ?: objectMapper.nullNode()
+        expect(aliases.fieldNames().asSequence().toSet() == setOf("supported", "collected"), errors) {
+            "Manifest capabilities.aliases contains unsupported fields"
+        }
+        val aliasesSupported = aliases["supported"]?.takeIf(JsonNode::isBoolean)?.asBoolean()
+        expect(aliasesSupported != null, errors) {
+            "Manifest capabilities.aliases.supported must be a boolean"
+        }
+        val aliasesCollected = aliases["collected"]?.takeIf(JsonNode::isBoolean)?.asBoolean()
+        expect(aliasesCollected != null, errors) {
+            "Manifest capabilities.aliases.collected must be a boolean"
+        }
+        expect(aliasesCollected != true || aliasesSupported == true, errors) {
+            "Manifest cannot collect unsupported aliases"
+        }
+        return SnapshotCapabilitiesData(
+            syntaxApi ?: SyntaxApi.REGISTRY,
+            eventValueApi ?: EventValueApi.LEGACY,
+            syntaxKinds,
+            AliasesCapabilitiesData(aliasesSupported ?: false, aliasesCollected ?: false)
+        )
+    }
+
+    private fun validateExpectedManifest(
+        manifest: JsonNode,
+        expectedEventValueMetadata: String?,
+        expectedSyntaxApi: String?,
+        expectedMinecraftVersion: String?,
+        expectedSkriptVersion: String?,
+        errors: MutableList<String>
+    ) {
+        expectedEventValueMetadata?.let { expectedShape ->
+            val expectedApi = if (expectedShape == "legacy-static") "legacy" else expectedShape
+            val actual = manifest["capabilities"]?.requiredText("eventValueApi")
+            expect(actual == expectedApi, errors) {
+                "Manifest eventValueApi does not match profile: expected=$expectedApi, actual=$actual"
+            }
+        }
+        expectedSyntaxApi?.let { expected ->
+            expect(manifest["capabilities"]?.requiredText("syntaxApi") == expected, errors) {
+                "Manifest syntaxApi does not match profile: expected=$expected"
+            }
+        }
+        expectedMinecraftVersion?.let { expected ->
+            val actual = manifest["server"]?.requiredText("minecraftVersion")
+            expect(actual == expected, errors) {
+                "Manifest Minecraft version does not match profile: expected=$expected, actual=$actual"
+            }
+        }
+        expectedSkriptVersion?.let { expected ->
+            val actual = manifest["plugins"]
+                ?.firstOrNull { it.requiredText("name") == "Skript" }
+                ?.requiredText("version")
+            expect(actual == expected, errors) {
+                "Manifest Skript version does not match profile: expected=$expected, actual=$actual"
+            }
+        }
+    }
+    private inline fun <reified T : Enum<T>> enumValue(
+        value: String,
+        serializedName: (T) -> String
+    ): T? = enumValues<T>().firstOrNull { serializedName(it) == value }
 
     private fun validateSequentialOrder(
         nodes: Iterable<JsonNode>,
@@ -290,11 +424,13 @@ object SnapshotValidator {
         if (expected == null) return
 
         eventValues.forEachIndexed { index, eventValue ->
-            expect(eventValue["registrationOrder"]?.isIntegralNumber == true, errors) {
-                "EventValues.json[$index] is missing registrationOrder"
+            if (expected != "legacy-static") {
+                expect(eventValue["registrationOrder"]?.isIntegralNumber == true, errors) {
+                    "EventValues.json[$index] is missing registrationOrder"
+                }
             }
             when (expected) {
-                "legacy" -> {
+                "legacy", "legacy-static" -> {
                     expect(!eventValue.has("patterns"), errors) {
                         "EventValues.json[$index] unexpectedly contains modern patterns"
                     }
@@ -328,6 +464,68 @@ object SnapshotValidator {
                     }
                 }
                 else -> errors += "Unknown EventValue metadata expectation: $expected"
+            }
+        }
+    }
+    private fun validateAliases(aliases: JsonNode, errors: MutableList<String>) {
+        val aliasMap = aliases["aliases"]
+        val targets = aliases["targets"]
+        expect(aliasMap?.isObject == true, errors) { "Aliases.json aliases must be an object" }
+        expect(targets?.isArray == true, errors) { "Aliases.json targets must be an array" }
+        if (aliasMap?.isObject != true || targets?.isArray != true) return
+
+        val names = aliasMap.fieldNames().asSequence().toList()
+        expect(names == names.sorted(), errors) { "Aliases.json names are not sorted" }
+        val referencedTargets = mutableSetOf<Int>()
+        names.forEach { name ->
+            expect(name.isNotBlank(), errors) { "Aliases.json contains a blank alias name" }
+            val index = aliasMap[name]
+            expect(index?.isIntegralNumber == true, errors) {
+                "Alias '$name' target index must be an integer"
+            }
+            if (index?.isIntegralNumber != true) return@forEach
+            val targetIndex = index.asInt()
+            expect(targetIndex in 0 until targets.size(), errors) {
+                "Alias '$name' target index is out of bounds"
+            }
+            if (targetIndex in 0 until targets.size()) referencedTargets += targetIndex
+        }
+        expect(referencedTargets == (0 until targets.size()).toSet(), errors) {
+            "Aliases.json contains unreferenced targets"
+        }
+
+        targets.forEachIndexed { targetIndex, target ->
+            expect(target.isObject, errors) { "Alias target[$targetIndex] must be an object" }
+            if (!target.isObject) return@forEachIndexed
+            expect(target["amount"]?.isIntegralNumber == true, errors) {
+                "Alias target[$targetIndex] has no integer amount"
+            }
+            expect(target["all"]?.isBoolean == true, errors) {
+                "Alias target[$targetIndex] has no boolean all flag"
+            }
+            val types = target["types"]
+            expect(types?.isArray == true, errors) {
+                "Alias target[$targetIndex] types must be an array"
+            }
+            types?.takeIf(JsonNode::isArray)?.forEachIndexed { index, item ->
+                expect(item["material"]?.asText()?.isNotBlank() == true, errors) {
+                    "Alias target[$targetIndex] types[$index] has no material"
+                }
+                expect(item["durability"]?.isIntegralNumber == true, errors) {
+                    "Alias target[$targetIndex] types[$index] has no integer durability"
+                }
+                expect(item["plain"]?.isBoolean == true, errors) {
+                    "Alias target[$targetIndex] types[$index] has no boolean plain flag"
+                }
+                expect(item["alias"]?.isBoolean == true, errors) {
+                    "Alias target[$targetIndex] types[$index] has no boolean alias flag"
+                }
+                expect(item["blockValues"] == null || item["blockValues"].isObject, errors) {
+                    "Alias target[$targetIndex] types[$index] blockValues must be an object"
+                }
+                expect(item["itemMeta"] == null || item["itemMeta"].isObject, errors) {
+                    "Alias target[$targetIndex] types[$index] itemMeta must be an object"
+                }
             }
         }
     }
@@ -368,12 +566,24 @@ object SnapshotValidator {
 object SnapshotValidatorMain {
     @JvmStatic
     fun main(args: Array<String>) {
-        require(args.size in 1..2) {
-            "Usage: SnapshotValidatorMain <snapshot-directory> [event-value-metadata]"
+        require(args.size in 1..6) {
+            "Usage: SnapshotValidatorMain <snapshot-directory> [event-value-api] [syntax-api] " +
+                "[minecraft-version] [skript-version] [non-empty-files]"
         }
-        val report = SnapshotValidator.validate(Path.of(args[0]), args.getOrNull(1))
+        val report = SnapshotValidator.validate(
+            Path.of(args[0]),
+            args.getOrNull(1),
+            args.getOrNull(2),
+            args.getOrNull(3),
+            args.getOrNull(4),
+            args.getOrNull(5)
+                ?.split(",")
+                ?.filter(String::isNotBlank)
+                ?.toSet()
+                .orEmpty()
+        )
         println(
-            "Validated ${report.files} files, ${report.registrations} registrations, " +
+            "Validated ${report.files} files, ${report.aliases} aliases, ${report.registrations} registrations, " +
                 "${report.types} types, ${report.eventValues} event values, and ${report.classes} classes."
         )
     }

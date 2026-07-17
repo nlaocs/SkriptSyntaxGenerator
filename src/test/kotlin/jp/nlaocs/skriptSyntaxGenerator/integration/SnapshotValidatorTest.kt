@@ -1,8 +1,14 @@
 package jp.nlaocs.skriptSyntaxGenerator.integration
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import jp.nlaocs.skriptSyntaxGenerator.data.AliasesCapabilitiesData
+import jp.nlaocs.skriptSyntaxGenerator.data.EventValueApi
 import jp.nlaocs.skriptSyntaxGenerator.data.PluginManifestData
 import jp.nlaocs.skriptSyntaxGenerator.data.ServerManifestData
+import jp.nlaocs.skriptSyntaxGenerator.data.SnapshotCapabilitiesData
+import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxApi
+import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxKindCapabilitiesData
+import jp.nlaocs.skriptSyntaxGenerator.generator.SnapshotFormat
 import jp.nlaocs.skriptSyntaxGenerator.util.SnapshotDigests
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -22,7 +28,8 @@ class SnapshotValidatorTest {
 
         val report = SnapshotValidator.validate(tempDirectory)
 
-        assertEquals(17, report.files)
+        assertEquals(18, report.files)
+        assertEquals(0, report.aliases)
         assertEquals(0, report.registrations)
     }
 
@@ -103,9 +110,54 @@ class SnapshotValidatorTest {
         assertTrue(error.message.orEmpty().contains("Duplicate registrationIds"))
     }
 
+    @Test
+    fun `rejects an alias target index outside the target table`() {
+        writeSnapshot(
+            mapOf(
+                "Aliases.json" to """{
+                    "aliases": {"stone": 1},
+                    "targets": [
+                      {"amount": 1, "all": false, "types": []}
+                    ]
+                }""".trimIndent()
+            )
+        )
+
+        val error = assertThrows<AssertionError> {
+            SnapshotValidator.validate(tempDirectory)
+        }
+
+        assertTrue(error.message.orEmpty().contains("target index is out of bounds"))
+    }
+
+    @Test
+    fun `rejects a snapshot generated for a different compatibility profile`() {
+        writeSnapshot()
+
+        val error = assertThrows<AssertionError> {
+            SnapshotValidator.validate(
+                tempDirectory,
+                expectedEventValueMetadata = "modern-2.16",
+                expectedSyntaxApi = "legacy-static",
+                expectedMinecraftVersion = "1.12.2",
+                expectedSkriptVersion = "2.6.4",
+                expectedNonEmptyFiles = setOf("EventValues.json")
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("eventValueApi does not match profile"))
+        assertTrue(error.message.orEmpty().contains("syntaxApi does not match profile"))
+        assertTrue(error.message.orEmpty().contains("Minecraft version does not match profile"))
+        assertTrue(error.message.orEmpty().contains("Skript version does not match profile"))
+        assertTrue(error.message.orEmpty().contains("EventValues.json must not be empty"))
+    }
     private fun writeSnapshot(overrides: Map<String, String> = emptyMap()) {
         val outputs = outputFiles.associateWith { fileName ->
-            if (fileName == "Operations.json") "{}" else "[]"
+            when (fileName) {
+                SnapshotFormat.OPERATIONS_FILE -> "{}"
+                SnapshotFormat.ALIASES_FILE -> "{\"aliases\":{},\"targets\":[]}"
+                else -> "[]"
+            }
         }.toMutableMap()
         outputs.putAll(overrides)
         outputs.forEach { (fileName, content) ->
@@ -123,51 +175,42 @@ class SnapshotValidatorTest {
             PluginManifestData(0, "SkriptSyntaxGenerator", "1.0", "generator.Main", true, emptyList(), emptyList(), listOf("Skript"), null),
             PluginManifestData(1, "Skript", "2.14.3", "skript.Main", true, emptyList(), emptyList(), emptyList(), null)
         )
-        val files = (outputFiles + "Manifest.json").sorted()
+        val capabilities = SnapshotCapabilitiesData(
+            SyntaxApi.REGISTRY,
+            EventValueApi.LEGACY,
+            SyntaxKindCapabilitiesData.modern(),
+            AliasesCapabilitiesData(true, true)
+        )
+        val files = SnapshotFormat.getAllFiles()
         val contentDigest = SnapshotDigests.contentDigest(outputs)
         val snapshotId = SnapshotDigests.snapshotId(
-            schemaVersion = 1,
+            schemaVersion = SnapshotFormat.SCHEMA_VERSION,
             contentDigest = contentDigest,
             server = server,
             language = "english",
             plugins = plugins,
+            capabilities = capabilities,
             files = files
         )
         val manifest = linkedMapOf(
-            "schemaVersion" to 1,
+            "schemaVersion" to SnapshotFormat.SCHEMA_VERSION,
             "snapshotId" to snapshotId,
             "contentDigest" to contentDigest,
             "generatedAt" to "2026-01-01T00:00:00Z",
             "server" to server,
             "language" to "english",
             "plugins" to plugins,
+            "capabilities" to capabilities,
             "files" to files
         )
         Files.writeString(
-            tempDirectory.resolve("Manifest.json"),
+            tempDirectory.resolve(SnapshotFormat.MANIFEST_FILE),
             objectMapper.writeValueAsString(manifest)
         )
     }
 
     companion object {
         private val objectMapper = ObjectMapper()
-        private val outputFiles = setOf(
-            "ClassHierarchy.json",
-            "Comparators.json",
-            "Conditions.json",
-            "Converters.json",
-            "Differences.json",
-            "Effects.json",
-            "EventValues.json",
-            "Events.json",
-            "Expressions.json",
-            "Functions.json",
-            "Operations.json",
-            "Operators.json",
-            "Properties.json",
-            "Sections.json",
-            "Structures.json",
-            "Types.json"
-        )
+        private val outputFiles = SnapshotFormat.getDataFiles().toSet()
     }
 }
