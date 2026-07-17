@@ -56,7 +56,7 @@ object SnapshotValidator {
         expectedMinecraftVersion: String? = null,
         expectedSkriptVersion: String? = null,
         expectedNonEmptyFiles: Set<String> = emptySet(),
-        fixturePluginsDirectory: Path? = null,
+        fixtureCatalogLocation: Path? = null,
         expectedFixtureAddonVersion: String? = null
     ): SnapshotValidationReport {
         val errors = mutableListOf<String>()
@@ -171,13 +171,13 @@ object SnapshotValidator {
             )
         }
 
-        val fixtureReport = fixturePluginsDirectory?.let { pluginsDirectory ->
+        val fixtureReport = fixtureCatalogLocation?.let { catalogLocation ->
             requireNotNull(expectedSkriptVersion) {
                 "expectedSkriptVersion is required when fixture catalog validation is enabled"
             }
             FixtureCatalogValidator.validate(
                 documents,
-                pluginsDirectory,
+                catalogLocation,
                 expectedSkriptVersion,
                 FixtureCatalogCapabilities(
                     expressionImplementationMetadata = expectedSyntaxApi != "legacy-static",
@@ -186,7 +186,7 @@ object SnapshotValidator {
             )
         }
         require(expectedFixtureAddonVersion == null || fixtureReport != null) {
-            "fixturePluginsDirectory is required when expectedFixtureAddonVersion is set"
+            "fixtureCatalogLocation is required when expectedFixtureAddonVersion is set"
         }
 
         return SnapshotValidationReport(
@@ -604,7 +604,7 @@ object SnapshotValidatorMain {
         require(args.size in 1..8) {
             "Usage: SnapshotValidatorMain <snapshot-directory> [event-value-api] [syntax-api] " +
                 "[minecraft-version] [skript-version] [non-empty-files] " +
-                "[fixture-plugins-directory] [fixture-addon-version]"
+                "[fixture-catalog-location] [fixture-addon-version]"
         }
         val report = SnapshotValidator.validate(
             Path.of(args[0]),

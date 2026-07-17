@@ -202,6 +202,26 @@ val integrationProfiles = listOf(
         GeneratorAdapter.MODERN, "registry", "modern-2.16", 25610
     ),
     IntegrationProfile(
+        "minecraft-1.16.5", "Minecraft1165", "1.16.5", "2.6.4", 16,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25611
+    ),
+    IntegrationProfile(
+        "minecraft-1.17.1", "Minecraft1171", "1.17.1", "2.6.4", 17,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25612
+    ),
+    IntegrationProfile(
+        "minecraft-1.18.2", "Minecraft1182", "1.18.2", "2.6.4", 17,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25613
+    ),
+    IntegrationProfile(
+        "minecraft-26.1.2", "Minecraft2612", "26.1.2", "2.15.4", 25,
+        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25614
+    ),
+    IntegrationProfile(
+        "minecraft-26.2", "Minecraft262", "26.2", "2.16.0", 25,
+        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25615
+    ),
+    IntegrationProfile(
         "legacy-1.8.8", "Legacy188", "1.8.8", "final-for-1.8", 8,
         GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static",
         status = "planned",
@@ -214,6 +234,10 @@ val activeIntegrationValidations = integrationProfiles
     .map { profile ->
         val output = layout.buildDirectory.dir("integration/${profile.id}/snapshot")
         val server = layout.buildDirectory.dir("integration/${profile.id}/server")
+        val fixtureCatalogJar = gradle.gradleUserHomeDir.resolve(
+            "caches/run-task-jars/plugins/paper/github/nlaocs/SkriptDummyAddon/" +
+                    "$dummyAddonVersion/SkriptDummyAddon-$dummyAddonVersion-skript-${profile.skript}.jar"
+        )
         val configuredServerJar = profile.serverJar?.let { requirement ->
             layout.file(
                 providers.gradleProperty(requirement.gradleProperty)
@@ -280,11 +304,11 @@ val activeIntegrationValidations = integrationProfiles
                     val requiredServerJar = requireNotNull(configuredServerJar)
                     check(requiredServerJar.isPresent) {
                         "Set -P${requirement.gradleProperty}=<path> or ${requirement.environmentVariable} " +
-                            "to an executable Paper ${profile.minecraft} server jar."
+                                "to an executable Paper ${profile.minecraft} server jar."
                     }
                     check(requiredServerJar.get().asFile.isFile) {
                         "Paper ${profile.minecraft} server jar does not exist: " +
-                            requiredServerJar.get().asFile.absolutePath
+                                requiredServerJar.get().asFile.absolutePath
                     }
                 }
                 project.delete(output)
@@ -310,7 +334,7 @@ val activeIntegrationValidations = integrationProfiles
                 profile.minecraft,
                 profile.skript,
                 profile.requiredNonEmptyFiles.sorted().joinToString(","),
-                server.get().dir("plugins").asFile.absolutePath,
+                fixtureCatalogJar.absolutePath,
                 dummyAddonVersion
             )
         }
@@ -329,8 +353,8 @@ tasks.register("integrationMatrix") {
         integrationProfiles.forEach { profile ->
             val blocker = profile.blocker?.let { " - $it" }.orEmpty()
             println(
-                "${profile.status.padEnd(7)} ${profile.id.padEnd(20)} " +
-                    "MC=${profile.minecraft.padEnd(13)} Skript=${profile.skript.padEnd(13)} Java=${profile.java}$blocker"
+                "${profile.status.padEnd(7)} ${profile.id.padEnd(22)} " +
+                        "MC=${profile.minecraft.padEnd(13)} Skript=${profile.skript.padEnd(13)} Java=${profile.java}$blocker"
             )
         }
     }

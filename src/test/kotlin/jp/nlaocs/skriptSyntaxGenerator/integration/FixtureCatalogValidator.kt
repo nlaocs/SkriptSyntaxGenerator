@@ -7,6 +7,7 @@ import java.nio.file.Path
 import java.util.jar.JarFile
 import kotlin.io.path.extension
 import kotlin.io.path.isDirectory
+import kotlin.io.path.isRegularFile
 
 data class FixtureCatalogValidationReport(
     val catalogJar: Path,
@@ -42,15 +43,15 @@ object FixtureCatalogValidator {
 
     fun validate(
         snapshotDocuments: Map<String, JsonNode>,
-        pluginsDirectory: Path,
+        catalogLocation: Path,
         expectedSkriptVersion: String,
         capabilities: FixtureCatalogCapabilities = FixtureCatalogCapabilities()
     ): FixtureCatalogValidationReport {
-        require(pluginsDirectory.isDirectory()) {
-            "Integration plugins directory does not exist: $pluginsDirectory"
+        require(catalogLocation.isDirectory() || catalogLocation.isRegularFile()) {
+            "Fixture catalog location does not exist: $catalogLocation"
         }
 
-        val loaded = loadCatalog(pluginsDirectory)
+        val loaded = loadCatalog(catalogLocation)
         val catalog = loaded.document
         val errors = mutableListOf<String>()
 
@@ -174,11 +175,15 @@ object FixtureCatalogValidator {
         }
     }
 
-    private fun loadCatalog(pluginsDirectory: Path): LoadedCatalog {
-        val jars = Files.walk(pluginsDirectory).use { paths ->
-            paths.filter { Files.isRegularFile(it) && it.extension.equals("jar", ignoreCase = true) }
-                .sorted()
-                .toList()
+    private fun loadCatalog(catalogLocation: Path): LoadedCatalog {
+        val jars = if (catalogLocation.isRegularFile()) {
+            listOf(catalogLocation)
+        } else {
+            Files.walk(catalogLocation).use { paths ->
+                paths.filter { Files.isRegularFile(it) && it.extension.equals("jar", ignoreCase = true) }
+                    .sorted()
+                    .toList()
+            }
         }
 
         jars.forEach { jarPath ->
@@ -202,7 +207,7 @@ object FixtureCatalogValidator {
         }
 
         throw AssertionError(
-            "No SkriptDummyAddon fixture catalog was found below $pluginsDirectory"
+            "No SkriptDummyAddon fixture catalog was found at $catalogLocation"
         )
     }
 

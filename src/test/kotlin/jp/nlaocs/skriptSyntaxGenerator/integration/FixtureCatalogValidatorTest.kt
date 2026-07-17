@@ -36,6 +36,20 @@ class FixtureCatalogValidatorTest {
     }
 
     @Test
+    fun `accepts a fixture jar directly`() {
+        val jar = writeCatalogJar(tempDirectory.resolve("plugins"))
+
+        val report = FixtureCatalogValidator.validate(
+            fixtureDocuments(),
+            jar,
+            expectedSkriptVersion = "2.14.3"
+        )
+
+        assertEquals(jar, report.catalogJar)
+        assertEquals(2, report.assertions)
+    }
+
+    @Test
     fun `reports mismatched expected fields and forbidden patterns`() {
         val plugins = tempDirectory.resolve("plugins")
         writeCatalogJar(plugins)
