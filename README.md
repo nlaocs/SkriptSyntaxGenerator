@@ -79,12 +79,19 @@ The integration suite currently covers these boundaries:
 | Skript | Minecraft | Java | Adapter |
 | --- | --- | --- | --- |
 | 2.6.4 | 1.12.2 | 8 | reflective |
+| 2.6.4 | 1.16.5 | 16 | reflective |
+| 2.6.4 | 1.17.1 | 17 | reflective |
+| 2.6.4 | 1.18.2 | 17 | reflective |
 | 2.7.3 | 1.20.2 | 17 | reflective |
 | 2.8.7 | 1.20.2 | 17 | reflective |
 | 2.9.5-2.13.2 | 1.21 | 21 | reflective |
 | 2.14.3-2.16.0 | 1.21.11 | 21 | current API |
+| 2.15.4 | 26.1.2 | 25 | current API |
+| 2.16.0 | 26.2 | 25 | current API |
 
 The `2.6.4 + Minecraft 1.12.2 + Java 8` profile is a required compatibility test, not an inferred target.
+
+Minecraft 1.16.5, 1.17.1, 1.18.2, 26.1.2, and 26.2 are representative patch releases selected from [Skript's bStats Minecraft Version chart](https://bstats.org/plugin/bukkit/Skript/722). The chart changes over time; these profiles cover the currently significant version families without replacing the Skript API boundary profiles. The interactive `runServer` task uses Skript 2.15.4 on Paper 1.21.11.
 
 Print the matrix:
 
@@ -98,7 +105,7 @@ Run unit tests:
 .\gradlew.bat test
 ```
 
-Archived Paper versions require executable server jars supplied by Gradle properties or the equivalent environment variables:
+Some archived Paper versions require executable server jars supplied by Gradle properties or the equivalent environment variables:
 
 ```powershell
 .\gradlew.bat `
@@ -108,6 +115,6 @@ Archived Paper versions require executable server jars supplied by Gradle proper
   integrationTest
 ```
 
-The environment variable alternatives are `PAPER_1122_JAR`, `PAPER_1202_JAR`, and `PAPER_121_JAR`.
+The environment variable alternatives are `PAPER_1122_JAR`, `PAPER_1202_JAR`, and `PAPER_121_JAR`. Paper 1.16.5, 1.17.1, and 1.18.2 are downloaded automatically through Paper's current Downloads Service. The 26.1.2 and 26.2 profiles use Java 25; the Foojay toolchain resolver downloads a matching JDK automatically when none is installed.
 
 Each profile downloads the matching SkriptDummyAddon release artifact, starts a real server, generates the snapshot, and parses every JSON file. Validation verifies the manifest and profile capabilities, global alias targets, required non-empty registries, and every applicable assertion from the fixture catalog embedded in the addon JAR. The default fixture release is `1.0.0`; it can be changed with `-PskriptSyntaxGenerator.dummyAddonVersion=<version>`. The catalog describes fixture semantics across versions. For the legacy adapter, fields documented as unavailable (expression implementation metadata and type registration ordering) are excluded from value comparison while the fixture records themselves remain required; the current adapter validates those fields as well.
