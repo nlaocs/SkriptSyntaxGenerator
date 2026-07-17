@@ -106,4 +106,4 @@ integration suiteでは、現在次の境界をテストしています。
 
 対応する環境変数は、`PAPER_1122_JAR`、`PAPER_1202_JAR`、`PAPER_121_JAR`です。
 
-各profileは実際のサーバーを起動し、スナップショットを生成して全JSONファイルをparseします。その後、Manifestとprofile capability、global alias targetを検証し、必須registryが予期せず空になっている場合はテストを失敗させます。
+各profileは対応するSkriptDummyAddonのRelease artifactをダウンロードして実サーバーを起動し、スナップショットを生成して全JSONファイルをparseします。その後、Manifestとprofile capability、global alias target、必須registryに加え、addon JAR内のfixture catalogで対象バージョンに適用されるすべてのassertionを検証します。デフォルトのfixture releaseは`1.0.0`で、`-PskriptSyntaxGenerator.dummyAddonVersion=<version>`により変更できます。catalogは各versionにおけるfixtureの意味を記述します。legacy adapterでは、取得不能と文書化されているfield（expression implementation metadataとtype registration ordering）だけを値比較から除外しますが、fixture record自体の存在は必須です。current adapterではそれらのfieldも比較します。
