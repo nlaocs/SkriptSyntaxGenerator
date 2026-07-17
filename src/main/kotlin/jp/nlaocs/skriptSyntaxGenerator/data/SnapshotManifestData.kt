@@ -2,6 +2,7 @@ package jp.nlaocs.skriptSyntaxGenerator.data
 
 import ch.njol.skript.Skript
 import ch.njol.skript.localization.Language
+import jp.nlaocs.skriptSyntaxGenerator.generator.SnapshotFormat
 import jp.nlaocs.skriptSyntaxGenerator.util.SnapshotDigests
 import org.bukkit.Bukkit
 import org.bukkit.plugin.Plugin
@@ -18,12 +19,15 @@ data class SnapshotManifestData(
     val server: ServerManifestData,
     val language: String,
     val plugins: List<PluginManifestData>,
+    val capabilities: SnapshotCapabilitiesData,
     val files: List<String>
 ) {
     companion object {
-        private const val SCHEMA_VERSION = 1
-
-        fun create(files: Collection<String>, contentDigest: String): SnapshotManifestData {
+        fun create(
+            files: Collection<String>,
+            contentDigest: String,
+            capabilities: SnapshotCapabilitiesData
+        ): SnapshotManifestData {
             val server = ServerManifestData(
                 name = Bukkit.getName(),
                 version = Bukkit.getVersion(),
@@ -36,26 +40,27 @@ data class SnapshotManifestData(
                 .mapIndexed { index, plugin -> PluginManifestData.from(plugin, index) }
             val orderedFiles = files.sorted()
             val snapshotId = SnapshotDigests.snapshotId(
-                schemaVersion = SCHEMA_VERSION,
+                schemaVersion = SnapshotFormat.SCHEMA_VERSION,
                 contentDigest = contentDigest,
                 server = server,
                 language = language,
                 plugins = plugins,
+                capabilities = capabilities,
                 files = orderedFiles
             )
 
             return SnapshotManifestData(
-                schemaVersion = SCHEMA_VERSION,
+                schemaVersion = SnapshotFormat.SCHEMA_VERSION,
                 snapshotId = snapshotId,
                 contentDigest = contentDigest,
                 generatedAt = Instant.now().toString(),
                 server = server,
                 language = language,
                 plugins = plugins,
+                capabilities = capabilities,
                 files = orderedFiles
             )
         }
-
     }
 }
 

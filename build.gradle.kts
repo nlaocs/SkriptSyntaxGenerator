@@ -20,6 +20,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":snapshot-contract"))
     compileOnly("org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("com.github.SkriptLang:Skript:2.14.2")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
@@ -89,73 +90,113 @@ tasks.processResources {
     }
 }
 
+enum class GeneratorAdapter { MODERN, REFLECTIVE }
+
+data class ServerJarRequirement(
+    val gradleProperty: String,
+    val environmentVariable: String
+)
+
+val paper1122 = ServerJarRequirement("skriptSyntaxGenerator.paper1122Jar", "PAPER_1122_JAR")
+val paper1202 = ServerJarRequirement("skriptSyntaxGenerator.paper1202Jar", "PAPER_1202_JAR")
+val paper121 = ServerJarRequirement("skriptSyntaxGenerator.paper121Jar", "PAPER_121_JAR")
+
 data class IntegrationProfile(
     val id: String,
     val taskSuffix: String,
     val minecraft: String,
     val skript: String,
-    val skriptAsset: String?,
     val java: Int,
-    val status: String,
-    val eventValueMetadata: String,
+    val adapter: GeneratorAdapter,
+    val syntaxApi: String,
+    val eventValueShape: String,
     val port: Int? = null,
+    val serverJar: ServerJarRequirement? = null,
+    val skriptAssetOverride: String? = null,
+    val status: String = "active",
     val blocker: String? = null
-)
+) {
+    val skriptAsset: String
+        get() = skriptAssetOverride ?: "Skript-$skript.jar"
+
+    val requiredNonEmptyFiles: Set<String>
+        get() {
+            val files = mutableSetOf(
+                "Aliases.json",
+                "Conditions.json",
+                "Effects.json",
+                "Events.json",
+                "Expressions.json",
+                "Sections.json",
+                "Types.json",
+                "Functions.json",
+                "Converters.json",
+                "Comparators.json",
+                "EventValues.json"
+            )
+            val minor = skript.split(".").getOrNull(1)?.toIntOrNull() ?: return files
+            if (minor >= 7) files += "Structures.json"
+            if (minor >= 8) {
+                files += "Operators.json"
+                files += "Operations.json"
+                files += "Differences.json"
+            }
+            if (minor >= 13) files += "Properties.json"
+            return files
+        }
+}
 
 val integrationProfiles = listOf(
     IntegrationProfile(
-        "modern-2.14.3",
-        "Modern2143",
-        "1.21.11",
-        "2.14.3",
-        "Skript-2.14.3.jar",
-        21,
-        "active",
-        "legacy",
-        25596
+        "skript-2.6.4", "Legacy264", "1.12.2", "2.6.4", 8,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25600,
+        paper1122
     ),
     IntegrationProfile(
-        "modern-2.15.2",
-        "Modern2152",
-        "1.21.11",
-        "2.15.2",
-        "Skript-2.15.2.jar",
-        21,
-        "active",
-        "modern-2.15",
-        25597
+        "skript-2.7.3", "Legacy273", "1.20.2", "2.7.3", 17,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25601, paper1202,
+        skriptAssetOverride = "Skript.jar"
     ),
     IntegrationProfile(
-        "modern-2.16.0",
-        "Modern2160",
-        "1.21.11",
-        "2.16.0",
-        "Skript-2.16.0.jar",
-        21,
-        "active",
-        "modern-2.16",
-        25598
+        "skript-2.8.7", "Legacy287", "1.20.2", "2.8.7", 17,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25602, paper1202
     ),
     IntegrationProfile(
-        "legacy-2.6.4",
-        "Legacy264",
-        "1.12.2",
-        "2.6.4",
-        null,
-        8,
-        "planned",
-        "legacy",
-        blocker = "Requires a Java 8 artifact and adapters for pre-SyntaxRegistry registration APIs."
+        "skript-2.9.5", "Legacy295", "1.21", "2.9.5", 21,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25603, paper121
     ),
     IntegrationProfile(
-        "legacy-1.8.8",
-        "Legacy188",
-        "1.8.8",
-        "final-for-1.8",
-        null,
-        8,
-        "planned",
-        "legacy",
+        "skript-2.10.2", "Legacy2102", "1.21", "2.10.2", 21,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25604, paper121
+    ),
+    IntegrationProfile(
+        "skript-2.11.2", "Legacy2112", "1.21", "2.11.2", 21,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25605, paper121
+    ),
+    IntegrationProfile(
+        "skript-2.12.2", "Legacy2122", "1.21", "2.12.2", 21,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25606, paper121
+    ),
+    IntegrationProfile(
+        "skript-2.13.2", "Legacy2132", "1.21", "2.13.2", 21,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25607, paper121
+    ),
+    IntegrationProfile(
+        "skript-2.14.3", "Modern2143", "1.21.11", "2.14.3", 21,
+        GeneratorAdapter.MODERN, "registry", "legacy", 25608
+    ),
+    IntegrationProfile(
+        "skript-2.15.4", "Modern2154", "1.21.11", "2.15.4", 21,
+        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25609
+    ),
+    IntegrationProfile(
+        "skript-2.16.0", "Modern2160", "1.21.11", "2.16.0", 21,
+        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25610
+    ),
+    IntegrationProfile(
+        "legacy-1.8.8", "Legacy188", "1.8.8", "final-for-1.8", 8,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static",
+        status = "planned",
         blocker = "Requires a Java 8 artifact, a legacy Skript adapter, and a Spigot-compatible runner."
     )
 )
@@ -165,19 +206,44 @@ val activeIntegrationValidations = integrationProfiles
     .map { profile ->
         val output = layout.buildDirectory.dir("integration/${profile.id}/snapshot")
         val server = layout.buildDirectory.dir("integration/${profile.id}/server")
+        val configuredServerJar = profile.serverJar?.let { requirement ->
+            layout.file(
+                providers.gradleProperty(requirement.gradleProperty)
+                    .orElse(providers.environmentVariable(requirement.environmentVariable))
+                    .map { project.file(it) }
+            )
+        }
         val runTask = tasks.register<RunServer>("runIntegration${profile.taskSuffix}") {
             group = "verification"
             description =
                 "Runs Paper ${profile.minecraft} with Skript ${profile.skript} and generates a syntax snapshot."
-            dependsOn(tasks.shadowJar)
+            if (profile.adapter == GeneratorAdapter.REFLECTIVE) {
+                dependsOn(":legacy:shadowJar")
+            } else {
+                dependsOn(tasks.shadowJar)
+            }
 
             minecraftVersion(profile.minecraft)
             runDirectory.set(server)
-            pluginJars(tasks.shadowJar.flatMap { it.archiveFile })
+            if (profile.adapter == GeneratorAdapter.REFLECTIVE) {
+                pluginJars(
+                    project(":legacy").layout.buildDirectory.file(
+                        "libs/SkriptSyntaxGenerator-legacy-${project.version}.jar"
+                    )
+                )
+                legacyPluginLoading()
+            } else {
+                pluginJars(tasks.shadowJar.flatMap { it.archiveFile })
+            }
+            if (configuredServerJar?.isPresent == true) {
+                serverJar(configuredServerJar)
+            }
             javaLauncher = project.javaToolchains.launcherFor {
                 languageVersion.set(JavaLanguageVersion.of(profile.java))
             }
-            jvmArgs("-XX:+EnableDynamicAgentLoading")
+            if (profile.java >= 21) {
+                jvmArgs("-XX:+EnableDynamicAgentLoading")
+            }
             systemProperty("skriptSyntaxGenerator.integration", "true")
             systemProperty(
                 "skriptSyntaxGenerator.outputDirectory",
@@ -189,11 +255,22 @@ val activeIntegrationValidations = integrationProfiles
                     "SkriptLang",
                     "Skript",
                     profile.skript,
-                    requireNotNull(profile.skriptAsset)
+                    profile.skriptAsset
                 )
             }
 
             doFirst {
+                profile.serverJar?.let { requirement ->
+                    val requiredServerJar = requireNotNull(configuredServerJar)
+                    check(requiredServerJar.isPresent) {
+                        "Set -P${requirement.gradleProperty}=<path> or ${requirement.environmentVariable} " +
+                            "to an executable Paper ${profile.minecraft} server jar."
+                    }
+                    check(requiredServerJar.get().asFile.isFile) {
+                        "Paper ${profile.minecraft} server jar does not exist: " +
+                            requiredServerJar.get().asFile.absolutePath
+                    }
+                }
                 project.delete(output)
                 project.delete(server)
                 server.get().asFile.mkdirs()
@@ -207,10 +284,17 @@ val activeIntegrationValidations = integrationProfiles
             dependsOn(runTask, tasks.testClasses)
             classpath = sourceSets.test.get().runtimeClasspath
             javaLauncher.set(project.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(profile.java))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
             mainClass.set("jp.nlaocs.skriptSyntaxGenerator.integration.SnapshotValidatorMain")
-            args(output.get().asFile.absolutePath, profile.eventValueMetadata)
+            args(
+                output.get().asFile.absolutePath,
+                profile.eventValueShape,
+                profile.syntaxApi,
+                profile.minecraft,
+                profile.skript,
+                profile.requiredNonEmptyFiles.sorted().joinToString(",")
+            )
         }
     }
 

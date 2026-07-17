@@ -2,6 +2,7 @@ package jp.nlaocs.skriptSyntaxGenerator.util
 
 import jp.nlaocs.skriptSyntaxGenerator.data.PluginManifestData
 import jp.nlaocs.skriptSyntaxGenerator.data.ServerManifestData
+import jp.nlaocs.skriptSyntaxGenerator.data.SnapshotCapabilitiesData
 
 object SnapshotDigests {
     fun contentDigest(serializedOutputs: Map<String, String>): String =
@@ -17,6 +18,7 @@ object SnapshotDigests {
         server: ServerManifestData,
         language: String,
         plugins: List<PluginManifestData>,
+        capabilities: SnapshotCapabilitiesData,
         files: Collection<String>
     ): String = StableIds.digest(
         fingerprint(
@@ -26,6 +28,7 @@ object SnapshotDigests {
                 server.fingerprint(),
                 language,
                 fingerprint(plugins.map(PluginManifestData::fingerprint)),
+                capabilities.fingerprint(),
                 fingerprint(files.sorted())
             )
         )

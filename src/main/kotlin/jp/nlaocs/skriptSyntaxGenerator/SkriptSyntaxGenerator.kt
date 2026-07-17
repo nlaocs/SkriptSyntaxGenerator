@@ -141,7 +141,6 @@ class AliasesData {
 
 // todo typeのcolorなどの、interfaceだがenumっぽい動きをするものは別途usageを用意しなければならない
 // todo typeのaliases定義を取得する
-// todo 過去バージョンのためalias
 // todo tagというものがある、用途まだ不明
 // todo DefaultValue
 // todo SimpleLiteralの、isSingle関連
