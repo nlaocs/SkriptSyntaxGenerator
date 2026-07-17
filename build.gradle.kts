@@ -1,9 +1,10 @@
+import org.gradle.api.tasks.compile.JavaCompile
 import xyz.jpenilla.runpaper.task.RunServer
 
 plugins {
     kotlin("jvm") version "2.3.20-RC"
     id("com.gradleup.shadow") version "8.3.0"
-    id("xyz.jpenilla.run-paper") version "2.3.1"
+    id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
 group = "jp.nlaocs"
@@ -79,6 +80,10 @@ tasks.build {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
 }
 
 tasks.processResources {
