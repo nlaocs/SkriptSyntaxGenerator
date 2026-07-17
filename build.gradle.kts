@@ -49,12 +49,12 @@ tasks {
         args("--port", "25595")
         downloadPlugins {
             //https://github.com/SkriptLang/Skript
-            github("SkriptLang", "Skript", "2.14.3", "Skript-2.14.3.jar")
-            github("SkQuery", "SkQuery", "4.3.2", "SkQuery-4.3.2.jar")
+            github("SkriptLang", "Skript", "2.15.4", "Skript-2.15.4.jar")
+            // github("SkQuery", "SkQuery", "4.3.2", "SkQuery-4.3.2.jar")
             github("sovdeeth", "skript-particle", "v1.4.1", "skript-particle-1.4.1.jar")
-            modrinth("skbee", "3.17.1")
-            modrinth("lusk", "1.3.13")
-            github("cooffeeRequired", "skJson", "5.4.1", "skjson.jar")
+            modrinth("skbee", "3.25.2")
+            modrinth("lusk", "1.3.14")
+            github("cooffeeRequired", "skJson", "5.6.0", "skjson.jar")
 
             // 特殊な作り方をしているaddon群
             github("SkriptLang", "skript-reflect", "v2.6.3", "skript-reflect-2.6.3.jar")
