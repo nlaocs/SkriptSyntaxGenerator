@@ -1,5 +1,10 @@
 package jp.nlaocs.skriptSyntaxGenerator.legacy;
 
+import java.security.DigestOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -10,7 +15,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.TreeMap;
 
 final class LegacyStableIds {
@@ -37,14 +41,45 @@ final class LegacyStableIds {
     }
 
     static String contentDigest(Map<String, String> serializedOutputs) {
-        SortedMap<String, String> sorted = new TreeMap<String, String>(serializedOutputs);
-        List<String> records = new ArrayList<String>();
-        for (Map.Entry<String, String> entry : sorted.entrySet()) {
-            String name = entry.getKey();
-            String json = entry.getValue();
-            records.add(name.length() + ":" + name + json.length() + ":" + json);
+        try {
+            MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+            OutputStream sink = new OutputStream() {
+                @Override
+                public void write(int value) {
+                }
+
+                @Override
+                public void write(byte[] buffer, int offset, int length) {
+                }
+            };
+            Writer writer = new OutputStreamWriter(
+                new DigestOutputStream(sink, messageDigest),
+                StandardCharsets.UTF_8
+            );
+            try {
+                boolean first = true;
+                for (Map.Entry<String, String> entry :
+                    new TreeMap<String, String>(serializedOutputs).entrySet()) {
+                    if (!first) writer.write('|');
+                    first = false;
+                    String name = entry.getKey();
+                    String json = entry.getValue();
+                    writer.write(String.valueOf(name.length()));
+                    writer.write(':');
+                    writer.write(name);
+                    writer.write(String.valueOf(json.length()));
+                    writer.write(':');
+                    writer.write(json);
+                }
+            } finally {
+                writer.close();
+            }
+            return hex(messageDigest.digest());
+        } catch (IOException exception) {
+            throw new IllegalStateException(exception);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
         }
-        return digest(join(records));
     }
 
     static String snapshotId(
@@ -78,12 +113,16 @@ final class LegacyStableIds {
         try {
             byte[] bytes = MessageDigest.getInstance("SHA-256")
                 .digest(value.getBytes(StandardCharsets.UTF_8));
-            StringBuilder result = new StringBuilder(bytes.length * 2);
-            for (byte item : bytes) result.append(String.format("%02x", item & 0xff));
-            return result.toString();
+            return hex(bytes);
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException(exception);
         }
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte item : bytes) result.append(String.format("%02x", item & 0xff));
+        return result.toString();
     }
 
     private static String addonName(Map<String, Object> addon) {

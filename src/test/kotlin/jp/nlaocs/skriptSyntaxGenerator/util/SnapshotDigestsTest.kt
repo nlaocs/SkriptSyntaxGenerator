@@ -37,6 +37,10 @@ class SnapshotDigestsTest {
         val second = linkedMapOf("A.json" to "{}", "B.json" to "[]")
 
         assertEquals(SnapshotDigests.contentDigest(first), SnapshotDigests.contentDigest(second))
+        assertEquals(
+            StableIds.digest("6:A.json2:{}|6:B.json2:[]"),
+            SnapshotDigests.contentDigest(first)
+        )
         assertNotEquals(
             SnapshotDigests.contentDigest(first),
             SnapshotDigests.contentDigest(linkedMapOf("A.json" to "[]", "B.json" to "[]"))

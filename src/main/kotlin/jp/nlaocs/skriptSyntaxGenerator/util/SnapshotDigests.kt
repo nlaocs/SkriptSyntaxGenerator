@@ -6,11 +6,17 @@ import jp.nlaocs.skriptSyntaxGenerator.data.SnapshotCapabilitiesData
 
 object SnapshotDigests {
     fun contentDigest(serializedOutputs: Map<String, String>): String =
-        StableIds.digest(
-            serializedOutputs.toSortedMap().entries.joinToString("|") { (fileName, json) ->
-                "${fileName.length}:$fileName${json.length}:$json"
+        StableIds.digest { writer ->
+            serializedOutputs.toSortedMap().entries.forEachIndexed { index, (fileName, json) ->
+                if (index > 0) writer.append('|')
+                writer.append(fileName.length.toString())
+                    .append(':')
+                    .append(fileName)
+                    .append(json.length.toString())
+                    .append(':')
+                    .append(json)
             }
-        )
+        }
 
     fun snapshotId(
         schemaVersion: Int,
