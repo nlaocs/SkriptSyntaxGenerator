@@ -60,6 +60,8 @@ tasks {
             github("SkriptLang", "skript-reflect", "v2.6.3", "skript-reflect-2.6.3.jar")
             github("Pesekjak", "Hippo", "1.3.1", "Hippo.jar")
 
+            github("nlaocs", "SkriptDummyAddon", "1.0.1", "SkriptDummyAddon-1.0.1-skript-2.15.4.jar")
+
         }
     }
 
@@ -106,7 +108,7 @@ val paper1122 = ServerJarRequirement("skriptSyntaxGenerator.paper1122Jar", "PAPE
 val paper1202 = ServerJarRequirement("skriptSyntaxGenerator.paper1202Jar", "PAPER_1202_JAR")
 val paper121 = ServerJarRequirement("skriptSyntaxGenerator.paper121Jar", "PAPER_121_JAR")
 val dummyAddonVersion = providers.gradleProperty("skriptSyntaxGenerator.dummyAddonVersion")
-    .orElse("1.0.0")
+    .orElse("1.0.1")
     .get()
 
 data class IntegrationProfile(
