@@ -84,7 +84,7 @@ object SnapshotValidator {
 
         failIfAny(errors)
 
-        (requiredFiles - setOf("Manifest.json", "Operations.json", "Aliases.json")).forEach { fileName ->
+        (requiredFiles - setOf("Manifest.json", "Operations.json", "Aliases.json", "PluralRules.json")).forEach { fileName ->
             expect(documents.getValue(fileName).isArray, errors) { "$fileName root must be an array" }
         }
         expect(documents.getValue("Operations.json").isObject, errors) {
@@ -92,6 +92,9 @@ object SnapshotValidator {
         }
         expect(documents.getValue("Aliases.json").isObject, errors) {
             "Aliases.json root must be an object"
+        }
+        expect(documents.getValue("PluralRules.json").isObject, errors) {
+            "PluralRules.json root must be an object"
         }
         expect(documents.getValue("Manifest.json").isObject, errors) {
             "Manifest.json root must be an object"
@@ -107,6 +110,7 @@ object SnapshotValidator {
                 val size = when (fileName) {
                     "Operations.json" -> flattenObjectArrays(document).size
                     "Aliases.json" -> document["aliases"]?.size() ?: 0
+                    "PluralRules.json" -> document["rules"]?.size() ?: 0
                     else -> document.size()
                 }
                 expect(size > 0, errors) { "$fileName must not be empty for this compatibility profile" }
@@ -139,6 +143,12 @@ object SnapshotValidator {
         validateSequentialOrder(flattenObjectArrays(documents.getValue("Operations.json")), "registrationOrder", "Operations.json", errors)
         validateSequentialOrder(documents.getValue("Types.json"), "typeParseOrder", "Types.json", errors)
         validateSequentialOrder(documents.getValue("EventValues.json"), "resolutionOrder", "EventValues.json", errors)
+        validateSequentialOrder(
+            documents.getValue("PluralRules.json").path("rules").toList(),
+            "ruleOrder",
+            "PluralRules.json",
+            errors
+        )
 
         val registrationNodes = buildList {
             registrationOrderFiles.forEach { addAll(documents.getValue(it)) }
@@ -151,6 +161,7 @@ object SnapshotValidator {
         documents.filterKeys { it != "Aliases.json" }.forEach { (fileName, root) ->
             validateProviders(root, fileName, errors)
         }
+        validatePluralRules(documents.getValue("PluralRules.json"), errors)
         validateAliases(documents.getValue("Aliases.json"), errors)
         validateTypeReferences(documents, errors)
         validateEventValueReferences(documents, errors)
@@ -499,6 +510,58 @@ object SnapshotValidator {
                     }
                 }
                 else -> errors += "Unknown EventValue metadata expectation: $expected"
+            }
+        }
+    }
+    private fun validatePluralRules(root: JsonNode, errors: MutableList<String>) {
+        val algorithm = root["algorithm"]?.asText()
+        expect(algorithm in setOf("legacy-first-match", "singular-aware"), errors) {
+            "PluralRules.json algorithm is invalid: $algorithm"
+        }
+        expect(root["pluralOverrideSupported"]?.isBoolean == true, errors) {
+            "PluralRules.json pluralOverrideSupported must be a boolean"
+        }
+        val rules = root["rules"]
+        expect(rules?.isArray == true, errors) { "PluralRules.json rules must be an array" }
+        expect(rules?.isEmpty == false, errors) { "PluralRules.json rules must not be empty" }
+        if (rules?.isArray != true) return
+
+        var builtInReached = false
+        rules.forEachIndexed { index, rule ->
+            expect(rule["singular"]?.isTextual == true, errors) {
+                "PluralRules.json rules[$index] singular must be a string"
+            }
+            expect(rule["plural"]?.isTextual == true, errors) {
+                "PluralRules.json rules[$index] plural must be a string"
+            }
+            val origin = rule["origin"]?.asText()
+            expect(origin in setOf("built-in", "override"), errors) {
+                "PluralRules.json rules[$index] origin is invalid: $origin"
+            }
+            if (origin == "built-in") builtInReached = true
+            if (origin == "override") {
+                expect(!builtInReached, errors) {
+                    "PluralRules.json override rules must precede built-in rules"
+                }
+                expect(rule["overrideRegistrationOrder"]?.isIntegralNumber == true, errors) {
+                    "PluralRules.json rules[$index] overrideRegistrationOrder must be an integer"
+                }
+            } else {
+                expect(!rule.has("overrideRegistrationOrder"), errors) {
+                    "PluralRules.json built-in rules must not have overrideRegistrationOrder"
+                }
+            }
+            if (algorithm == "singular-aware") {
+                expect(rule["completeWord"]?.isBoolean == true, errors) {
+                    "PluralRules.json rules[$index] completeWord must be a boolean"
+                }
+            } else {
+                expect(!rule.has("completeWord"), errors) {
+                    "Legacy PluralRules.json rules[$index] must omit completeWord"
+                }
+            }
+            expect(rule["addon"]?.isObject == true, errors) {
+                "PluralRules.json rules[$index] addon must be an object"
             }
         }
     }

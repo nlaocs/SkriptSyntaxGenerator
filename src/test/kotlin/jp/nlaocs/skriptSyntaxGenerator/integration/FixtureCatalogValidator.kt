@@ -130,6 +130,8 @@ object FixtureCatalogValidator {
             root.isArray -> root.toList()
             fileName == "Operations.json" && root.isObject ->
                 root.fields().asSequence().flatMap { (_, values) -> values.asSequence() }.toList()
+            fileName == "PluralRules.json" && root.isObject ->
+                root.path("rules").toList()
             else -> {
                 errors += "$key cannot search non-array root in $fileName"
                 return
@@ -158,7 +160,7 @@ object FixtureCatalogValidator {
             } else {
                 expected.fields().forEachRemaining { (field, expectedValue) ->
                     if (!capabilities.supports(fileName, field)) return@forEachRemaining
-                    expect(record[field] == expectedValue, errors) {
+                    expect(matchesExpected(record[field], expectedValue), errors) {
                         "$key field $field differs: expected=$expectedValue, actual=${record[field]}"
                     }
                 }
@@ -228,6 +230,15 @@ object FixtureCatalogValidator {
         version.split(".").map { part ->
             part.takeWhile(Char::isDigit).toIntOrNull() ?: 0
         }
+
+    private fun matchesExpected(actual: JsonNode?, expected: JsonNode): Boolean {
+        if (!expected.isObject) return actual == expected
+        if (actual?.isObject != true) return false
+
+        return expected.fields().asSequence().all { (field, expectedValue) ->
+            matchesExpected(actual[field], expectedValue)
+        }
+    }
 
     private inline fun expect(
         condition: Boolean,

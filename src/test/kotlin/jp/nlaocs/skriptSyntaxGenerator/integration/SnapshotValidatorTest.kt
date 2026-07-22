@@ -28,7 +28,7 @@ class SnapshotValidatorTest {
 
         val report = SnapshotValidator.validate(tempDirectory)
 
-        assertEquals(18, report.files)
+        assertEquals(19, report.files)
         assertEquals(0, report.aliases)
         assertEquals(0, report.registrations)
     }
@@ -156,6 +156,8 @@ class SnapshotValidatorTest {
             when (fileName) {
                 SnapshotFormat.OPERATIONS_FILE -> "{}"
                 SnapshotFormat.ALIASES_FILE -> "{\"aliases\":{},\"targets\":[]}"
+                SnapshotFormat.PLURAL_RULES_FILE ->
+                    """{"algorithm":"singular-aware","pluralOverrideSupported":true,"rules":[{"ruleOrder":0,"singular":"","plural":"s","completeWord":false,"origin":"built-in","addon":{"name":"Skript","version":"2.14.3"}}]}"""
                 else -> "[]"
             }
         }.toMutableMap()

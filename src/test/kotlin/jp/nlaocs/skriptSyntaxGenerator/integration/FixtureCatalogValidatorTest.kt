@@ -32,7 +32,7 @@ class FixtureCatalogValidatorTest {
         )
 
         assertEquals(jar, report.catalogJar)
-        assertEquals(2, report.assertions)
+        assertEquals(3, report.assertions)
     }
 
     @Test
@@ -46,7 +46,7 @@ class FixtureCatalogValidatorTest {
         )
 
         assertEquals(jar, report.catalogJar)
-        assertEquals(2, report.assertions)
+        assertEquals(3, report.assertions)
     }
 
     @Test
@@ -105,6 +105,23 @@ class FixtureCatalogValidatorTest {
         }""".trimIndent()
     ): Map<String, JsonNode> = mapOf(
         "Effects.json" to objectMapper.readTree("[$effect]"),
+        "PluralRules.json" to objectMapper.readTree(
+            """{
+                "algorithm": "singular-aware",
+                "pluralOverrideSupported": true,
+                "rules": [
+                    {
+                      "ruleOrder": 0,
+                      "singular": "fixtureperson",
+                      "plural": "fixturepeople",
+                      "completeWord": true,
+                      "origin": "override",
+                      "overrideRegistrationOrder": 0,
+                      "addon": {"name": "FixtureAddon", "version": "1.0"}
+                    }
+                ]
+            }""".trimIndent()
+        ),
         "Operations.json" to objectMapper.readTree(
             """{
                 "fixture": [
@@ -149,6 +166,17 @@ class FixtureCatalogValidatorTest {
                 "right": "fixture.Right"
               },
               "expected": {"returnType": "fixture.Result"}
+            },
+            {
+              "key": "fixture-plural-override",
+              "since": "2.14.3",
+              "file": "PluralRules.json",
+              "match": {"singular": "fixtureperson"},
+              "expected": {
+                "plural": "fixturepeople",
+                "origin": "override",
+                "addon": {"name": "FixtureAddon"}
+              }
             },
             {
               "key": "future-fixture",
