@@ -2,7 +2,7 @@
 
 [English](json-format.md) | 日本語
 
-この文書は、`/skgen` が出力するschema version `2`の18ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
+この文書は、`/skgen` が出力するschema version `3`の19ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
 
 ## 形式の読み方
 
@@ -58,8 +58,9 @@ generatorはJacksonの`NON_NULL`設定でDTOを直列化します。後述する
 | `Differences.json` | array | 2値間の距離・差を求める規則。 |
 | `ClassHierarchy.json` | array | snapshotで使われるJava classの継承関係。 |
 | `Aliases.json` | object | global登録されたitem/block名と解決結果。 |
+| `PluralRules.json` | object | runtime優先順に並んだ英語の単数形・複数形変換rule。 |
 
-全ファイルが常に出力されます。空rootは、配列ファイルが`[]`、`Operations.json`が`{}`、`Aliases.json`が`{"aliases":{},"targets":[]}`です。
+全ファイルが常に出力されます。空rootは、配列ファイルが`[]`、`Operations.json`が`{}`、`Aliases.json`が`{"aliases":{},"targets":[]}`、`PluralRules.json`が`{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}`です。
 
 ## 共通object
 
@@ -454,19 +455,47 @@ root:
 
 読むのはglobal providerだけです。Skript built-in aliasとaddonがglobal登録したaliasは含みますが、各scriptの`aliases:` sectionはscript-local providerに保存されるため意図的に除外します。ユーザーscript内容はsnapshotへ入りません。
 
+### `PluralRules.json`
+
+rootはobjectです。Skriptは、type pattern内の単語が複数形かを判定するときと、英語の複数形を生成するときにこのtableを使います。ruleはruntimeで実際に評価される優先順で出力されるため、利用側は`ruleOrder`の小さい順に処理してください。
+
+| field | 型 | 有無 | 意味 |
+| --- | --- | --- | --- |
+| `algorithm` | string enum | 必須 | `legacy-first-match`、`singular-aware`、またはcontractが補う空rootだけで使う`unresolved`。実際の生成物では最初の2値のどちらか。 |
+| `pluralOverrideSupported` | boolean | 必須 | このSkript runtimeが`Utils.addPluralOverride(String, String)`を公開しているか。 |
+| `rules` | `array<PluralRuleData>` | 必須 | 実効変換table。実際の生成物には最低でもbuilt-in fallback ruleが存在する。 |
+
+`PluralRuleData`:
+
+| field | 型 | 有無 | 意味 |
+| --- | --- | --- | --- |
+| `ruleOrder` | int, `>= 0` | 必須 | 0始まりで連続する評価順。小さいほど優先度が高い。 |
+| `singular` | string | 必須 | 単数形suffixまたは完全な単語。built-in fallbackでは意図的に空文字列。 |
+| `plural` | string | 必須 | 複数形suffixまたは完全な単語。 |
+| `completeWord` | boolean | version依存 | `singular-aware`で必須。`true`ならsuffixだけでなく入力単語全体の一致を要求する。metadataが存在しないlegacy pair tableでは省略。 |
+| `origin` | string enum | 必須 | Skript同梱ruleの`built-in`、または成功したruntime `addPluralOverride`呼び出しの`override`。 |
+| `overrideRegistrationOrder` | int, `>= 0` | overrideのみ | 捕捉したoverride呼び出し間の時系列順。overrideは先頭へ追加されるため、通常は実効`ruleOrder`と逆順になる。 |
+| `addon` | object | 必須 | ruleの所有plugin。built-in ruleはSkript、override ruleは呼び出し元addon。 |
+
+`legacy-first-match`は複数形endingを直接走査し、最初の一致を単数形へ戻します。`singular-aware`は、入力が既知の単数形endingに一致するかを先に調べ、その後で複数形endingを走査します。同じrule pairでも結果が変わり得るため、algorithmもデータ契約に含めています。
+
+current adapterはSkriptのload前に`Utils.addPluralOverride`をinstrumentationします。これにより、最終tableから所有者を推測せず、重複override、呼び出し順、呼び出し元addonを保持します。legacy adapterは古いstatic `String[][]` tableをreflectionで読みます。対応legacy profileにはoverride APIがありません。
+
+Skript source: [2.6.4のlegacy `Utils.java`](https://github.com/SkriptLang/Skript/blob/2.6.4/src/main/java/ch/njol/skript/util/Utils.java)、[2.14.3のsingular-aware `Utils.java`](https://github.com/SkriptLang/Skript/blob/2.14.3/src/main/java/ch/njol/skript/util/Utils.java)。Generator側path: `snapshot-contract/src/main/java/jp/nlaocs/skriptSyntaxGenerator/generator/PluralRulesReader.java`、`src/main/java/jp/nlaocs/skriptSyntaxGenerator/hook/RegisterPluralOverrideHook.java`。
+
 ## `Manifest.json`
 
 | フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | 必須 | この文書ではexact `2`。未知のmajor schemaは拒否または別処理する。 |
+| `schemaVersion` | int | 必須 | この文書ではexact `3`。未知のmajor schemaは拒否または別処理する。 |
 | `snapshotId` | sha256 | 必須 | schema、content、server、language、plugin list、capability、file list由来のidentity。 |
-| `contentDigest` | sha256 | 必須 | Manifestを除く17 data fileのserialized content digest。 |
+| `contentDigest` | sha256 | 必須 | Manifestを除く18 data fileのserialized content digest。 |
 | `generatedAt` | ISO-8601 string | 必須 | UTC `Instant`。`snapshotId`には含まれない。 |
 | `server` | `ServerManifestData` | 必須 | 実行server identity。 |
 | `language` | string | 必須 | active Skript language。legacyで取得不能なら`unknown`。type nounにも影響する。 |
 | `plugins` | `array<PluginManifestData>` | 必須 | Bukkit load orderのplugin一覧。 |
 | `capabilities` | `SnapshotCapabilitiesData` | 必須 | API shapeと対応registry。 |
-| `files` | `array<string>` | 必須 | `Manifest.json`を含む18ファイル名のsort済み一覧。 |
+| `files` | `array<string>` | 必須 | `Manifest.json`を含む19ファイル名のsort済み一覧。 |
 
 `ServerManifestData`は必須stringの`name`、`version`、`bukkitVersion`、`minecraftVersion`、`javaVersion`を持ちます。
 
@@ -536,4 +565,5 @@ Property registryの境界は[Skript 2.13.0の`Property.java`](https://github.co
 5. 省略・unresolvedと、解決済みの空配列・空objectを区別する。
 6. `Aliases.json.aliases[text]`を`targets[index]`へ解決し、index範囲を検証する。
 7. LSP processにserver classがあると仮定せず、assignabilityには`ClassHierarchy.json`と`Types.json.assignableTo`を使う。
-8. server、Skript、addon、addon version、language、plugin load orderが変わったらsnapshotを再生成する。
+8. 一般的な英語inflectorで代用せず、`PluralRules.json.rules`を`ruleOrder`順に、`algorithm`の動作で適用する。
+9. server、Skript、addon、addon version、language、plugin load orderが変わったらsnapshotを再生成する。

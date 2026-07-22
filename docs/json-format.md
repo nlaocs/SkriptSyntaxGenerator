@@ -2,7 +2,7 @@
 
 English | [Japanese](json-format.ja.md)
 
-This document describes schema version `2`, the 18 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
+This document describes schema version `3`, the 19 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
 
 ## Reading the format
 
@@ -58,8 +58,9 @@ Consumers should read `Manifest.json` first. Do not infer support only from a Sk
 | `Differences.json` | array | Rules for calculating the distance or difference between values. |
 | `ClassHierarchy.json` | array | Java inheritance graph for every class referenced by the snapshot. |
 | `Aliases.json` | object | Globally registered item/block names and their resolved targets. |
+| `PluralRules.json` | object | Effective English singular/plural conversion rules in runtime priority order. |
 
-Every file is always emitted. The empty root is `[]` for array files, `{}` for `Operations.json`, and `{"aliases":{},"targets":[]}` for `Aliases.json`.
+Every file is always emitted. The empty root is `[]` for array files, `{}` for `Operations.json`, `{"aliases":{},"targets":[]}` for `Aliases.json`, and `{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}` for `PluralRules.json`.
 
 ## Shared objects
 
@@ -462,19 +463,47 @@ The root has two required fields:
 
 Only the global provider is read: built-in Skript aliases and aliases registered globally by addons are included. Per-script `aliases:` sections use script-local providers and are intentionally excluded, so user script contents never enter the snapshot.
 
+### `PluralRules.json`
+
+Root: object. Skript uses this table when it decides whether a type-pattern word is plural and when it produces an English plural. Rules are emitted in effective runtime priority order; consumers must evaluate `rules` from the lowest `ruleOrder` upward.
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `algorithm` | string enum | Required | `legacy-first-match`, `singular-aware`, or `unresolved` only for a contract-created empty root. Generated snapshots use one of the first two values. |
+| `pluralOverrideSupported` | boolean | Required | Whether this Skript runtime exposes `Utils.addPluralOverride(String, String)`. |
+| `rules` | `array<PluralRuleData>` | Required | Effective conversion table. A real generated snapshot contains at least the built-in fallback rule. |
+
+`PluralRuleData`:
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `ruleOrder` | int, `>= 0` | Required | Contiguous zero-based evaluation order. Lower values have higher priority. |
+| `singular` | string | Required | Singular suffix or complete word. The built-in fallback intentionally uses an empty string. |
+| `plural` | string | Required | Plural suffix or complete word. |
+| `completeWord` | boolean | Version-dependent | Present for `singular-aware`; `true` requires the whole input word to match rather than only its suffix. Omitted for legacy pair tables because that metadata did not exist. |
+| `origin` | string enum | Required | `built-in` for a rule shipped by Skript, or `override` for a successful runtime `addPluralOverride` call. |
+| `overrideRegistrationOrder` | int, `>= 0` | Override only | Chronological order among captured override calls. Overrides are added to the front, so this order is normally the reverse of their effective `ruleOrder`. |
+| `addon` | object | Required | Plugin that owns the rule. Built-in rules point to Skript; override rules point to the calling addon. |
+
+`legacy-first-match` scans plural endings directly and converts the first match to its singular form. `singular-aware` first checks whether the input already matches a known singular ending, then scans plural endings; this avoids classifying many singular words as plural. Both algorithms are part of the data contract because identical rule pairs can behave differently under them.
+
+The current adapter instruments `Utils.addPluralOverride` before Skript loads. This preserves duplicate overrides, call order, and the caller addon rather than guessing ownership from the final table. The legacy adapter reads the older static `String[][]` table reflectively; supported legacy profiles do not expose the override API.
+
+Skript sources: [legacy `Utils.java` in 2.6.4](https://github.com/SkriptLang/Skript/blob/2.6.4/src/main/java/ch/njol/skript/util/Utils.java) and [singular-aware `Utils.java` in 2.14.3](https://github.com/SkriptLang/Skript/blob/2.14.3/src/main/java/ch/njol/skript/util/Utils.java). Generator paths: `snapshot-contract/src/main/java/jp/nlaocs/skriptSyntaxGenerator/generator/PluralRulesReader.java` and `src/main/java/jp/nlaocs/skriptSyntaxGenerator/hook/RegisterPluralOverrideHook.java`.
+
 ## `Manifest.json`
 
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | Required | Exact value `2` for this document. Reject or negotiate unknown major schema values. |
+| `schemaVersion` | int | Required | Exact value `3` for this document. Reject or negotiate unknown major schema values. |
 | `snapshotId` | sha256 | Required | Identity derived from schema, content, server, language, plugin list, capabilities, and file list. |
-| `contentDigest` | sha256 | Required | Digest of the 17 serialized data files, excluding the manifest. |
+| `contentDigest` | sha256 | Required | Digest of the 18 serialized data files, excluding the manifest. |
 | `generatedAt` | ISO-8601 string | Required | UTC `Instant` timestamp. It is not part of `snapshotId`. |
 | `server` | `ServerManifestData` | Required | Runtime server identity. |
 | `language` | string | Required | Active Skript language; legacy collection may use `unknown`. Language affects localized type nouns. |
 | `plugins` | `array<PluginManifestData>` | Required | Installed plugins in Bukkit load order. |
 | `capabilities` | `SnapshotCapabilitiesData` | Required | API shapes and supported registries. |
-| `files` | `array<string>` | Required | Sorted list of all 18 expected filenames, including `Manifest.json`. |
+| `files` | `array<string>` | Required | Sorted list of all 19 expected filenames, including `Manifest.json`. |
 
 `ServerManifestData` has required string fields `name`, `version`, `bukkitVersion`, `minecraftVersion`, and `javaVersion`.
 
@@ -544,4 +573,5 @@ The old global alias store is visible in [`Aliases.java`](https://github.com/Skr
 5. Distinguish omitted/unresolved values from resolved empty arrays or objects.
 6. Resolve `Aliases.json.aliases[text]` through `targets[index]` and validate the index.
 7. Use `ClassHierarchy.json` and `Types.json.assignableTo` for assignability rather than assuming Java classes are available to the LSP process.
-8. Regenerate the snapshot whenever the server, Skript, addons, addon versions, language, or plugin load order changes.
+8. Apply `PluralRules.json.rules` in `ruleOrder` and select behavior from `algorithm`; do not substitute a built-in English inflector.
+9. Regenerate the snapshot whenever the server, Skript, addons, addon versions, language, or plugin load order changes.
