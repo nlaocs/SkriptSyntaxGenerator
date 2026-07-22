@@ -22,7 +22,8 @@ public final class HookManager {
             RegisterDifferenceHook.INSTANCE,
             RegisterOperatorHook.INSTANCE,
             RegisterOperationHook.INSTANCE,
-            RegisterConverterHook.INSTANCE
+            RegisterConverterHook.INSTANCE,
+            RegisterPluralOverrideHook.INSTANCE
     );
     private Logger logger = Logger.getLogger("HookManager");
     private final boolean hookLogEnabled = HookLogOptions.isEnabled();

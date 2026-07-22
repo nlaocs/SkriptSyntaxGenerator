@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import jp.nlaocs.skriptSyntaxGenerator.data.AliasesCapabilitiesData;
 import jp.nlaocs.skriptSyntaxGenerator.data.EventValueApi;
+import jp.nlaocs.skriptSyntaxGenerator.data.PluralOverrideRegistration;
+import jp.nlaocs.skriptSyntaxGenerator.data.PluralRuleAddonData;
 import jp.nlaocs.skriptSyntaxGenerator.data.SnapshotCapabilitiesData;
 import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxApi;
 import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxKindCapabilitiesData;
 import jp.nlaocs.skriptSyntaxGenerator.generator.GlobalAliasesReader;
+import jp.nlaocs.skriptSyntaxGenerator.generator.PluralRulesReader;
 import jp.nlaocs.skriptSyntaxGenerator.generator.SnapshotFormat;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
@@ -25,6 +28,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +86,19 @@ final class LegacySnapshotGenerator {
         outputs.put("Operations.json", arithmetic.collectOperations());
         outputs.put("ClassHierarchy.json", hierarchy.toData());
         outputs.put(SnapshotFormat.ALIASES_FILE, GlobalAliasesReader.read(skriptClassLoader));
+        Plugin skriptPlugin = Bukkit.getPluginManager().getPlugin("Skript");
+        if (skriptPlugin == null) throw new IllegalStateException("Skript is not installed");
+        outputs.put(
+            SnapshotFormat.PLURAL_RULES_FILE,
+            PluralRulesReader.read(
+                skriptClassLoader,
+                new PluralRuleAddonData(
+                    skriptPlugin.getName(),
+                    skriptPlugin.getDescription().getVersion()
+                ),
+                Collections.<PluralOverrideRegistration>emptyList()
+            )
+        );
 
         Map<String, Object> normalized = SnapshotFormat.normalize(outputs);
         Map<String, String> serializedOutputs = new LinkedHashMap<String, String>();

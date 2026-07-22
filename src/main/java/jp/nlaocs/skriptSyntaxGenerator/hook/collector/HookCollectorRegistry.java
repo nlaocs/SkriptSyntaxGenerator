@@ -13,7 +13,8 @@ public final class HookCollectorRegistry {
             RegisterOperatorCollector.getInstance(),
             RegisterOperationCollector.getInstance(),
             RegisterDifferenceCollector.getInstance(),
-            RegisterConverterCollector.getInstance()
+            RegisterConverterCollector.getInstance(),
+            RegisterPluralOverrideCollector.getInstance()
     );
 
     private HookCollectorRegistry() {

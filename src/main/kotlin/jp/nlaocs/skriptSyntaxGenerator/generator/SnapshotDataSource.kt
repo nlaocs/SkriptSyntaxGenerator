@@ -14,6 +14,7 @@ import jp.nlaocs.skriptSyntaxGenerator.collector.EventValueCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.ExpressionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.FunctionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.PropertyCollector
+import jp.nlaocs.skriptSyntaxGenerator.collector.PluralRulesCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.SectionCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.StructureCollector
 import jp.nlaocs.skriptSyntaxGenerator.collector.SyntaxCollector
@@ -47,7 +48,8 @@ class ModernSnapshotDataSource : SnapshotDataSource {
         ConverterCollector(),
         ComparatorCollector(),
         EventValueCollector(),
-        PropertyCollector()
+        PropertyCollector(),
+        PluralRulesCollector()
     )
 
     override val capabilities: SnapshotCapabilitiesData by lazy {
