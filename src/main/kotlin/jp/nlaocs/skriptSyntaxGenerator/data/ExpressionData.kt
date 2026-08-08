@@ -9,6 +9,7 @@ import jp.nlaocs.skriptSyntaxGenerator.bytecode.ExpressionBytecodeAnalyzer
 import jp.nlaocs.skriptSyntaxGenerator.data.common.CommonSyntaxData
 import jp.nlaocs.skriptSyntaxGenerator.data.common.SyntaxKind
 import jp.nlaocs.skriptSyntaxGenerator.util.annoValue
+import jp.nlaocs.skriptSyntaxGenerator.util.nullIfEmpty
 import org.bukkit.Bukkit
 import org.skriptlang.skript.registration.DefaultSyntaxInfos
 
@@ -18,6 +19,29 @@ class ExpressionData(
     registrationOccurrence: Int
 ) : CommonSyntaxData(s, SyntaxKind.EXPRESSION, registrationOrder, registrationOccurrence) {
     val returnType: Class<*>? = s.returnType() // todo nullableにすべきかを調べる
+
+    @Transient
+    private val returnTypeAnalysis = ExpressionBytecodeAnalyzer.returnTypeAnalysis(s.type())
+
+    val returnTypeState: ReturnTypeState = when (returnTypeAnalysis.state) {
+        ExpressionBytecodeAnalyzer.ReturnTypeState.STATIC -> ReturnTypeState.STATIC
+        ExpressionBytecodeAnalyzer.ReturnTypeState.DYNAMIC -> ReturnTypeState.DYNAMIC
+        ExpressionBytecodeAnalyzer.ReturnTypeState.UNRESOLVED -> ReturnTypeState.UNRESOLVED
+    }
+
+    val possibleReturnTypes: List<Class<*>>? =
+        returnTypeAnalysis.possibleReturnTypes.nullIfEmpty()
+
+    val possibleReturnTypesState: PossibleReturnTypesState =
+        when (returnTypeAnalysis.possibleReturnTypesState) {
+            ExpressionBytecodeAnalyzer.PossibleReturnTypesState.COMPLETE ->
+                PossibleReturnTypesState.COMPLETE
+            ExpressionBytecodeAnalyzer.PossibleReturnTypesState.PARTIAL ->
+                PossibleReturnTypesState.PARTIAL
+            ExpressionBytecodeAnalyzer.PossibleReturnTypesState.UNRESOLVED ->
+                PossibleReturnTypesState.UNRESOLVED
+        }
+
     val isSectionExpression: Boolean = SectionExpression::class.java.isAssignableFrom(s.type())
 
     @Transient
@@ -146,5 +170,17 @@ enum class AcceptedChangersState(@get:JsonValue val value: String) {
 
 enum class ReturnTypeMultiplicityState(@get:JsonValue val value: String) {
     RESOLVED("resolved"),
+    UNRESOLVED("unresolved")
+}
+
+enum class ReturnTypeState(@get:JsonValue val value: String) {
+    STATIC("static"),
+    DYNAMIC("dynamic"),
+    UNRESOLVED("unresolved")
+}
+
+enum class PossibleReturnTypesState(@get:JsonValue val value: String) {
+    COMPLETE("complete"),
+    PARTIAL("partial"),
     UNRESOLVED("unresolved")
 }

@@ -21,7 +21,7 @@ LSPや各種ツールで利用するために、サーバー固有のSkript構�
 
 ## Manifest capabilities
 
-`Manifest.json`はschema version 3を使用し、次の情報を記録します。
+`Manifest.json`はschema version 4を使用し、次の情報を記録します。
 
 - `syntaxApi`: `legacy-static`または`registry`
 - `eventValueApi`: `legacy`、`modern-2.15`、または`modern-2.16`

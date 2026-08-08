@@ -21,7 +21,7 @@ Both adapters always emit the same files. Features unavailable in an older Skrip
 
 ## Manifest capabilities
 
-`Manifest.json` uses schema version 3 and records:
+`Manifest.json` uses schema version 4 and records:
 
 - `syntaxApi`: `legacy-static` or `registry`
 - `eventValueApi`: `legacy`, `modern-2.15`, or `modern-2.16`

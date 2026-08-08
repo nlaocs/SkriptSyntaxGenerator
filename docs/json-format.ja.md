@@ -2,7 +2,7 @@
 
 [English](json-format.md) | 日本語
 
-この文書は、`/skgen` が出力するschema version `3`の19ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
+この文書は、`/skgen` が出力するschema version `4`の19ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
 
 ## 形式の読み方
 
@@ -181,13 +181,16 @@ expressionはplayer、location、number、listなどの値を生成する構文�
 | 追加フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
 | `returnType` | class-name | 省略可 | 宣言されたJava結果型。Skriptが公開しない場合は省略。 |
+| `returnTypeState` | string enum | 必須 | 宣言型が確定値なら`static`、初期化やcaptureで変わるなら`dynamic`、bytecode解析で判定不能なら`unresolved`。 |
+| `possibleReturnTypes` | class-name配列 | state依存 | bytecode解析で到達可能と証明できた返り値型。具体型を証明できない場合は省略。 |
+| `possibleReturnTypesState` | string enum | 必須 | `possibleReturnTypes`が網羅的かを`complete`、`partial`、`unresolved`で示す。 |
 | `sectionExpression` | boolean | 必須 | 値を返しながらindented sectionも持てるexpressionか。 |
 | `returnTypeMultiplicity` | string enum | state依存 | `SINGLE`、`MULTIPLE`、`BOTH`。`BOTH`は委譲先やruntime入力によって個数が変わる。 |
 | `returnTypeMultiplicityState` | resolution state | 必須 | bytecodeと継承関係からmultiplicityを安全に判定できたか。 |
 | `acceptedChangers` | ChangeMode map | state依存 | 対応する変更方法と引数型。`{}`は取得済みでread-only。 |
 | `acceptedChangersState` | resolution state | 必須 | changer metadataを安全に判定できたか。 |
 
-Multiplicityは「1回の評価で返す値の個数」であり、「候補Java型の個数」ではありません。legacy adapterは両stateを意図的に`unresolved`とし、例外的な構文はLSP側で上書きできます。
+Multiplicityは「1回の評価で返す値の個数」であり、「候補Java型の個数」ではありません。`partial`は下限なので、期待型が配列にないことだけを理由にdynamic expressionを除外できません。legacy adapterは実装解析系stateを意図的に`unresolved`とし、例外的な構文はLSP側で上書きできます。
 
 ### `Sections.json`
 
@@ -487,7 +490,7 @@ Skript source: [2.6.4のlegacy `Utils.java`](https://github.com/SkriptLang/Skrip
 
 | フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | 必須 | この文書ではexact `3`。未知のmajor schemaは拒否または別処理する。 |
+| `schemaVersion` | int | 必須 | この文書ではexact `4`。未知のmajor schemaは拒否または別処理する。 |
 | `snapshotId` | sha256 | 必須 | schema、content、server、language、plugin list、capability、file list由来のidentity。 |
 | `contentDigest` | sha256 | 必須 | Manifestを除く18 data fileのserialized content digest。 |
 | `generatedAt` | ISO-8601 string | 必須 | UTC `Instant`。`snapshotId`には含まれない。 |

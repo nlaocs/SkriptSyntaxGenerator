@@ -28,6 +28,9 @@ data class FixtureCatalogCapabilities(
 
     private companion object {
         val EXPRESSION_IMPLEMENTATION_FIELDS = setOf(
+            "returnTypeState",
+            "possibleReturnTypes",
+            "possibleReturnTypesState",
             "returnTypeMultiplicity",
             "returnTypeMultiplicityState",
             "acceptedChangers",

@@ -217,6 +217,8 @@ final class LegacySyntaxCollector {
             data.put("returnType", className(returnType));
             hierarchy.add(returnType);
         }
+        data.put("returnTypeState", "unresolved");
+        data.put("possibleReturnTypesState", "unresolved");
         Object expressionType = LegacyReflection.invokeOrNull(info, "getExpressionType");
         if (expressionType != null) {
             String priority = expressionPriority(String.valueOf(expressionType));

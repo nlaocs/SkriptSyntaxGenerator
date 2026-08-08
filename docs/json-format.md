@@ -2,7 +2,7 @@
 
 English | [Japanese](json-format.ja.md)
 
-This document describes schema version `3`, the 19 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
+This document describes schema version `4`, the 19 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
 
 ## Reading the format
 
@@ -185,13 +185,16 @@ An expression is syntax that produces a value, such as a player, location, numbe
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
 | `returnType` | class-name | Optional | Declared Java result type. Omitted when Skript does not expose one. |
+| `returnTypeState` | string enum | Required | `static` when the declared type is exact, `dynamic` when runtime initialization or captures can change it, or `unresolved` when bytecode analysis cannot decide. |
+| `possibleReturnTypes` | class-name array | State-dependent | Return types proven reachable by bytecode analysis. Omitted when no concrete type can be proven. |
+| `possibleReturnTypesState` | string enum | Required | `complete`, `partial`, or `unresolved`, indicating whether `possibleReturnTypes` is exhaustive. |
 | `sectionExpression` | boolean | Required | Whether the expression can own an indented section while also producing a value. |
 | `returnTypeMultiplicity` | string enum | State-dependent | `SINGLE`, `MULTIPLE`, or `BOTH`. `BOTH` means the amount depends on delegated/runtime input. |
 | `returnTypeMultiplicityState` | resolution state | Required | Whether multiplicity was safely inferred from bytecode and inheritance. |
 | `acceptedChangers` | change-mode map | State-dependent | Supported mutations and their argument types. `{}` means resolved and read-only. |
 | `acceptedChangersState` | resolution state | Required | Whether changer metadata was safely inferred. |
 
-Multiplicity is about the number of values produced by one evaluation, not the number of possible Java return types. Legacy-adapter expressions intentionally report both state fields as `unresolved`; the LSP may override exceptional cases.
+Multiplicity is about the number of values produced by one evaluation, not the number of possible Java return types. A `partial` list is a lower bound and consumers must not exclude a dynamic expression merely because the expected type is absent. Legacy-adapter expressions intentionally report implementation-analysis state fields as `unresolved`; the LSP may override exceptional cases.
 
 ### `Sections.json`
 
@@ -495,7 +498,7 @@ Skript sources: [legacy `Utils.java` in 2.6.4](https://github.com/SkriptLang/Skr
 
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | Required | Exact value `3` for this document. Reject or negotiate unknown major schema values. |
+| `schemaVersion` | int | Required | Exact value `4` for this document. Reject or negotiate unknown major schema values. |
 | `snapshotId` | sha256 | Required | Identity derived from schema, content, server, language, plugin list, capabilities, and file list. |
 | `contentDigest` | sha256 | Required | Digest of the 18 serialized data files, excluding the manifest. |
 | `generatedAt` | ISO-8601 string | Required | UTC `Instant` timestamp. It is not part of `snapshotId`. |
