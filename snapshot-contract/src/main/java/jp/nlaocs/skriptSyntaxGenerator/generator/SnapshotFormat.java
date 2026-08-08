@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class SnapshotFormat {
-    public static final int SCHEMA_VERSION = 3;
+    public static final int SCHEMA_VERSION = 4;
     public static final String MANIFEST_FILE = "Manifest.json";
     public static final String ALIASES_FILE = "Aliases.json";
     public static final String OPERATIONS_FILE = "Operations.json";

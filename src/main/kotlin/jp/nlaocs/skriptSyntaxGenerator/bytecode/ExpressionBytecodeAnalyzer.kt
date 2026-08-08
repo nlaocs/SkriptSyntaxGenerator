@@ -6,12 +6,14 @@ import net.bytebuddy.jar.asm.Handle
 import net.bytebuddy.jar.asm.Label
 import net.bytebuddy.jar.asm.MethodVisitor
 import net.bytebuddy.jar.asm.Opcodes
+import net.bytebuddy.jar.asm.Type
 import java.util.concurrent.ConcurrentHashMap
 
 object ExpressionBytecodeAnalyzer {
     private const val ACCEPT_CHANGE_DESCRIPTOR =
         "(Lch/njol/skript/classes/Changer\$ChangeMode;)[Ljava/lang/Class;"
     private const val GET_RETURN_TYPE_DESCRIPTOR = "()Ljava/lang/Class;"
+    private const val POSSIBLE_RETURN_TYPES_DESCRIPTOR = "()[Ljava/lang/Class;"
     private const val IS_SINGLE_DESCRIPTOR = "()Z"
 
     private const val SIMPLE_EXPRESSION = "ch/njol/skript/lang/util/SimpleExpression"
@@ -45,6 +47,49 @@ object ExpressionBytecodeAnalyzer {
         findMethod(expressionClass, "isSingle", IS_SINGLE_DESCRIPTOR)
             ?.isSingleAnalysis()
             ?: IsSingleAnalysis.UNRESOLVED
+
+    fun returnTypeAnalysis(expressionClass: Class<*>): ReturnTypeAnalysis {
+        val returnTypeMethod = findMethod(
+            expressionClass,
+            "getReturnType",
+            GET_RETURN_TYPE_DESCRIPTOR
+        ) ?: return ReturnTypeAnalysis(
+            state = ReturnTypeState.UNRESOLVED,
+            possibleReturnTypes = emptyList(),
+            possibleReturnTypesState = PossibleReturnTypesState.UNRESOLVED
+        )
+        val possibleReturnTypesMethod = findMethod(
+            expressionClass,
+            "possibleReturnTypes",
+            POSSIBLE_RETURN_TYPES_DESCRIPTOR
+        )
+        val state = returnTypeMethod.returnTypeState()
+        val descriptors = linkedSetOf<String>().apply {
+            addAll(returnTypeMethod.classLiteralDescriptors)
+            possibleReturnTypesMethod?.let { addAll(it.classLiteralDescriptors) }
+        }
+        val possibleReturnTypes = descriptors.mapNotNull { descriptor ->
+            resolveClassLiteral(expressionClass, descriptor)
+        }
+        val possibleReturnTypesState = when {
+            state == ReturnTypeState.STATIC -> PossibleReturnTypesState.COMPLETE
+            possibleReturnTypesMethod?.hasCompleteClassLiteralSet() == true ->
+                PossibleReturnTypesState.COMPLETE
+            possibleReturnTypes.isNotEmpty() -> PossibleReturnTypesState.PARTIAL
+            else -> PossibleReturnTypesState.UNRESOLVED
+        }
+        return ReturnTypeAnalysis(state, possibleReturnTypes, possibleReturnTypesState)
+    }
+
+    private fun resolveClassLiteral(expressionClass: Class<*>, descriptor: String): Class<*>? =
+        runCatching {
+            val type = Type.getType(descriptor)
+            when (type.sort) {
+                Type.OBJECT -> Class.forName(type.className, false, expressionClass.classLoader)
+                Type.ARRAY -> Class.forName(descriptor.replace('/', '.'), false, expressionClass.classLoader)
+                else -> null
+            }
+        }.getOrNull()
 
     private fun hasSafeGetReturnType(expressionClass: Class<*>): Boolean =
         findMethod(expressionClass, "getReturnType", GET_RETURN_TYPE_DESCRIPTOR)
@@ -101,6 +146,24 @@ object ExpressionBytecodeAnalyzer {
         SINGLE,
         MULTIPLE,
         BOTH,
+        UNRESOLVED
+    }
+
+    data class ReturnTypeAnalysis(
+        val state: ReturnTypeState,
+        val possibleReturnTypes: List<Class<*>>,
+        val possibleReturnTypesState: PossibleReturnTypesState
+    )
+
+    enum class ReturnTypeState {
+        STATIC,
+        DYNAMIC,
+        UNRESOLVED
+    }
+
+    enum class PossibleReturnTypesState {
+        COMPLETE,
+        PARTIAL,
         UNRESOLVED
     }
 
@@ -162,7 +225,10 @@ object ExpressionBytecodeAnalyzer {
     ) : MethodVisitor(Opcodes.ASM9) {
         private val opcodes = mutableListOf<Int>()
         private val methodCalls = mutableListOf<MethodCall>()
+        val classLiteralDescriptors = linkedSetOf<String>()
         private var unsafeInstructionFound = false
+        private var instanceStateAccessed = false
+        private var controlFlowFound = false
 
         fun isSingleAnalysis(): IsSingleAnalysis {
             constantBooleanReturn()?.let {
@@ -187,6 +253,38 @@ object ExpressionBytecodeAnalyzer {
                 else -> null
             }
         }
+
+        fun returnTypeState(): ReturnTypeState {
+            if (constantClassReturn() != null) {
+                return ReturnTypeState.STATIC
+            }
+            if (!hasCode()) {
+                return ReturnTypeState.UNRESOLVED
+            }
+            return if (
+                instanceStateAccessed ||
+                controlFlowFound ||
+                opcodes.count { it == Opcodes.ARETURN } > 1 ||
+                methodCalls.any { it.name in dynamicReturnTypeMethodNames }
+            ) {
+                ReturnTypeState.DYNAMIC
+            } else {
+                ReturnTypeState.UNRESOLVED
+            }
+        }
+
+        fun hasCompleteClassLiteralSet(): Boolean =
+            hasCode() &&
+                classLiteralDescriptors.isNotEmpty() &&
+                !instanceStateAccessed &&
+                !controlFlowFound &&
+                methodCalls.all {
+                    it.owner == COLLECTION_UTILS && it.name == "array"
+                }
+
+        private fun constantClassReturn(): String? =
+            classLiteralDescriptors.singleOrNull()
+                ?.takeIf { opcodes == listOf(Opcodes.LDC, Opcodes.ARETURN) }
 
         fun isSafeToCall(): Boolean = hasCode() && !unsafeInstructionFound
 
@@ -217,6 +315,7 @@ object ExpressionBytecodeAnalyzer {
         override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
             opcodes += opcode
             if (opcode == Opcodes.GETFIELD || opcode == Opcodes.PUTFIELD) {
+                instanceStateAccessed = true
                 unsafeInstructionFound = true
             }
         }
@@ -247,10 +346,14 @@ object ExpressionBytecodeAnalyzer {
 
         override fun visitJumpInsn(opcode: Int, label: Label) {
             opcodes += opcode
+            controlFlowFound = true
         }
 
         override fun visitLdcInsn(value: Any?) {
             opcodes += Opcodes.LDC
+            if (value is Type && value.sort in setOf(Type.OBJECT, Type.ARRAY)) {
+                classLiteralDescriptors += value.descriptor
+            }
         }
 
         override fun visitIincInsn(variable: Int, increment: Int) {
@@ -259,10 +362,12 @@ object ExpressionBytecodeAnalyzer {
 
         override fun visitTableSwitchInsn(min: Int, max: Int, dflt: Label, vararg labels: Label) {
             opcodes += Opcodes.TABLESWITCH
+            controlFlowFound = true
         }
 
         override fun visitLookupSwitchInsn(dflt: Label, keys: IntArray, labels: Array<out Label>) {
             opcodes += Opcodes.LOOKUPSWITCH
+            controlFlowFound = true
         }
 
         override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) {
@@ -341,5 +446,17 @@ object ExpressionBytecodeAnalyzer {
         "isAssignableFrom",
         "isArray",
         "getComponentType"
+    )
+
+    private val dynamicReturnTypeMethodNames = setOf(
+        "getExpr",
+        "getReturnType",
+        "possibleReturnTypes",
+        "canReturn",
+        "canReturnAnyOf",
+        "isSingle",
+        "getSingle",
+        "getArray",
+        "getAll"
     )
 }
