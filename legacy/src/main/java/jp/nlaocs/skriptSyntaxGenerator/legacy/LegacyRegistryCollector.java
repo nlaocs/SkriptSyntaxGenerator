@@ -4,6 +4,7 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -78,13 +79,20 @@ final class LegacyRegistryCollector {
             data.put("noun", nounData(value(info, "getName", "name")));
             Class<?> serializeAs = classValue(value(info, "getSerializeAs", "serializeAs"));
             if (serializeAs != null) data.put("serializeAs", className(serializeAs));
-            putList(data, "usage", usage(info, originalClass));
+            putList(data, "usage", LegacyReflection.strings(LegacyReflection.invokeOrNull(info, "getUsage")));
+            putList(data, "enumValues", enumValues(originalClass));
+            putList(data, "parserPatterns", parserPatterns(parser));
+            Object supplier = LegacyReflection.invokeOrNull(info, "getSupplier");
+            putList(data, "literalValues", literalValues(parser, supplier));
+            putList(data, "typeLiterals", typeLiterals(parser, supplier));
+            if (parser != null) data.put("parserClass", className(parser.getClass()));
+            putList(data, "parseContexts", parseContexts(parser));
             if (defaultExpression != null) {
                 data.put("defaultExpressionClass", className(defaultExpression.getClass()));
             }
             data.put("hasParser", parser != null);
             data.put("hasSerializer", serializer != null);
-            data.put("hasSupplier", false);
+            data.put("hasSupplier", supplier != null);
             data.put("properties", Collections.emptyList());
             putList(data, "before", sortedStrings(LegacyReflection.invokeOrNull(info, "before")));
             putList(data, "after", sortedStrings(LegacyReflection.invokeOrNull(info, "after")));
@@ -301,17 +309,81 @@ final class LegacyRegistryCollector {
         return result;
     }
 
-    private List<String> usage(Object info, Class<?> originalClass) {
+    private List<String> enumValues(Class<?> originalClass) {
         List<String> result = new ArrayList<String>();
-        if (originalClass.isEnum()) {
-            Object constants = originalClass.getEnumConstants();
-            for (int index = 0; index < Array.getLength(constants); index++) {
-                Enum<?> constant = (Enum<?>) Array.get(constants, index);
-                result.add(constant.name().toLowerCase(Locale.ENGLISH).replace('_', ' '));
-            }
-            return result;
+        if (!originalClass.isEnum()) return result;
+        Object constants = originalClass.getEnumConstants();
+        for (int index = 0; index < Array.getLength(constants); index++) {
+            Enum<?> constant = (Enum<?>) Array.get(constants, index);
+            result.add(constant.name().toLowerCase(Locale.ENGLISH).replace('_', ' '));
         }
-        return LegacyReflection.strings(LegacyReflection.invokeOrNull(info, "getUsage"));
+        return result;
+    }
+
+    private List<String> parserPatterns(Object parser) {
+        return LegacyReflection.strings(LegacyReflection.invokeOrNull(parser, "getPatterns"));
+    }
+
+    private List<String> literalValues(Object parser, Object supplier) {
+        if (parser == null || supplier == null) return Collections.emptyList();
+        Object iterator = LegacyReflection.invokeOrNull(supplier, "get");
+        LinkedHashSet<String> result = new LinkedHashSet<String>();
+        for (Object value : LegacyReflection.list(iterator)) {
+            Object rendered = LegacyReflection.invokeOrNull(parser, "toString", value, 0);
+            if (rendered == null) continue;
+            String text = String.valueOf(rendered).trim();
+            if (!text.isEmpty()) result.add(text);
+        }
+        return new ArrayList<String>(result);
+    }
+
+    private List<Map<String, Object>> typeLiterals(Object parser, Object supplier) {
+        if (parser == null || supplier == null) return Collections.emptyList();
+        Object iterator = LegacyReflection.invokeOrNull(supplier, "get");
+        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+        for (Object value : LegacyReflection.list(iterator)) {
+            if (value == null) continue;
+            String text = rendered(parser, "toString", value, 0);
+            if (text == null) continue;
+            Map<String, Object> literal = new LinkedHashMap<String, Object>();
+            literal.put("text", text);
+            String plural = rendered(parser, "toString", value, 1);
+            if (plural != null && !plural.equals(text)) literal.put("pluralText", plural);
+            put(literal, "variableName", rendered(parser, "toVariableNameString", value));
+            String debug = rendered(parser, "getDebugMessage", value);
+            if (debug != null && !debug.equals(text)) literal.put("debugText", debug);
+            literal.put("valueClass", className(value.getClass()));
+            Object representedClass = LegacyReflection.invokeOrNull(value, "getType");
+            if (representedClass instanceof Class<?>) {
+                literal.put("representedClass", className((Class<?>) representedClass));
+            }
+            if (value instanceof Enum<?>) literal.put("enumConstant", ((Enum<?>) value).name());
+            if (!result.contains(literal)) result.add(literal);
+        }
+        return result;
+    }
+
+    private List<String> parseContexts(Object parser) {
+        if (parser == null) return Collections.emptyList();
+        Class<?> contextClass = LegacyReflection.classOrNull("ch.njol.skript.lang.ParseContext", classLoader);
+        if (contextClass == null || !contextClass.isEnum()) return Collections.emptyList();
+        List<String> result = new ArrayList<String>();
+        for (Object context : contextClass.getEnumConstants()) {
+            if (Boolean.TRUE.equals(LegacyReflection.invokeOrNull(parser, "canParse", context))) {
+                result.add(((Enum<?>) context).name());
+            }
+        }
+        return result;
+    }
+
+    private String rendered(Object parser, String method, Object value, Object... extra) {
+        Object[] arguments = new Object[extra.length + 1];
+        arguments[0] = value;
+        System.arraycopy(extra, 0, arguments, 1, extra.length);
+        Object rendered = LegacyReflection.invokeOrNull(parser, method, arguments);
+        if (rendered == null) return null;
+        String text = String.valueOf(rendered).trim();
+        return text.isEmpty() ? null : text;
     }
 
     private List<String> patterns(Object rawPatterns) {

@@ -263,14 +263,32 @@ A type connects a Skript type name such as a number, player, or location to Java
 | `userInputPatterns` | `array<string>` | Optional | Regexes accepted by this type's parser. Omitted when no direct text parser patterns exist. |
 | `noun` | `NounData` | Required | Localized singular/plural name and grammatical gender. |
 | `serializeAs` | class-name | Optional | Another registered Java class whose serializer is reused. |
-| `usage` | `array<string>` | Optional | Human-readable accepted values. Enum types usually list normalized enum constants. |
+| `usage` | `array<string>` | Optional | Documentation supplied by the type registration. It is not necessarily a machine-readable list of accepted literals. |
+| `enumValues` | `array<string>` | Optional | Normalized Java enum constant names. Their presence does not mean the type has a Skript parser; check `hasParser`. |
+| `parserPatterns` | `array<string>` | Optional | Exact literal spellings exposed by a patterned type parser, including localized enum alternatives. |
+| `literalValues` | `array<string>` | Optional | Canonical text rendered from every value exposed by both the type parser and its finite supplier. |
+| `typeLiterals` | `array<TypeLiteralData>` | Optional | Structured finite supplier values. Each entry preserves parser renderings and runtime identity without type-specific generator corrections. |
+| `parserClass` | class-name | Optional | Runtime class implementing Skript's parser for this type. |
+| `parseContexts` | `array<string>` | Optional | `ParseContext` names in which the parser reports that it accepts input. |
 | `defaultExpressionClass` | class-name | Optional | Java class providing a context-dependent default value of this type. |
 | `hasParser` | boolean | Required | Whether text can be parsed directly into this type. |
 | `hasSerializer` | boolean | Required | Whether values can be persisted by Skript. |
-| `hasSupplier` | boolean | Required | Whether the type supplies values through the newer supplier API. Legacy adapter reports `false`. |
+| `hasSupplier` | boolean | Required | Whether the type supplies a finite value iterator. |
 | `properties` | `array<string>` | Required | Property names registered for this type. Legacy adapter currently emits `[]`; use `Properties.json` when available. |
 | `before` | `array<string>` | Optional | Type code names this type explicitly requests to be parsed before. Current adapter only; omitted when empty. |
 | `after` | `array<string>` | Optional | Type code names this type explicitly requests to be parsed after. Current adapter only; omitted when empty. |
+
+`TypeLiteralData` fields:
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `text` | string | Required | Canonical message representation returned by `Parser.toString(value, 0)`. |
+| `pluralText` | string | Optional | Representation returned with Skript's plural flag, omitted when equal to `text`. |
+| `variableName` | string | Optional | Stable representation used when the value is embedded in a Skript variable name. |
+| `debugText` | string | Optional | Parser-provided debug representation, omitted when equal to `text`. |
+| `valueClass` | class-name | Required | Runtime Java class of the supplied value. This can be more specific than the registered type class. |
+| `representedClass` | class-name | Optional | Class returned by a public zero-argument `getType(): Class` method on the supplied value. For example, an EntityData value can expose the Bukkit entity class it represents. |
+| `enumConstant` | string | Optional | Exact Java enum constant name when the supplied value is an enum. |
 
 `NounData` fields:
 
