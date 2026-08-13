@@ -9,11 +9,17 @@ import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
 import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Documentable
 import jp.nlaocs.skriptSyntaxGenerator.hook.collector.RegisterClassCollector
+import jp.nlaocs.skriptSyntaxGenerator.util.AddonResolver
 import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
 import jp.nlaocs.skriptSyntaxGenerator.util.cleaning
+import jp.nlaocs.skriptSyntaxGenerator.util.enumValues
 import jp.nlaocs.skriptSyntaxGenerator.util.getTypeStr
+import jp.nlaocs.skriptSyntaxGenerator.util.literalValues
+import jp.nlaocs.skriptSyntaxGenerator.util.parseContexts
+import jp.nlaocs.skriptSyntaxGenerator.util.parserPatterns
 import jp.nlaocs.skriptSyntaxGenerator.util.stableName
-import jp.nlaocs.skriptSyntaxGenerator.util.toStringListSafe
+import jp.nlaocs.skriptSyntaxGenerator.util.typeLiterals
+import org.bukkit.Bukkit
 import java.util.regex.Pattern
 
 class TypeData(
@@ -28,12 +34,15 @@ class TypeData(
     override val requires: List<String>? = s.requiredPlugins?.filterNotNull()?.toList()
 
     @Transient
-    val snapshot = requireNotNull(RegisterClassCollector.getInstance().snapshotMap()[s.codeName]) {
-        "registerClass snapshot was not found for ${s.codeName ?: s.c}"
-    }
+    val snapshot = RegisterClassCollector.getInstance().snapshotMap()[s.codeName]
 
-    override val addon: AddonInfo = requireNotNull(snapshot.addon) {
-        "registerClass snapshot addon was not found for ${s.codeName ?: s.c}"
+    override val addon: AddonInfo = requireNotNull(
+        snapshot?.addon
+            ?: AddonResolver.fromClass(s.c)
+            ?: s.parser?.javaClass?.let(AddonResolver::fromClass)
+            ?: Bukkit.getPluginManager().getPlugin("Skript")?.let(AddonResolver::fromPlugin)
+    ) {
+        "type addon was not found for ${s.codeName ?: s.c}"
     }
 
     val definitionId: String =
@@ -63,7 +72,13 @@ class TypeData(
     val userInputPatterns: List<Pattern>? = s.userInputPatterns?.toList()
     val noun: Noun = s.name
     val serializeAs: Class<*>? = s.serializeAs
-    val usage = s.c.toStringListSafe().ifEmpty { s.usage?.toList() }.cleaning()
+    val usage = s.usage?.toList().cleaning()
+    val enumValues = s.c.enumValues().ifEmpty { null }
+    val parserPatterns = s.parserPatterns()
+    val literalValues = s.literalValues()
+    val typeLiterals = s.typeLiterals()
+    val parserClass: Class<*>? = s.parser?.javaClass
+    val parseContexts = s.parseContexts()
 
     val defaultExpressionClass: Class<out DefaultExpression<*>>? = s.defaultExpression?.javaClass
     val hasParser: Boolean = s.parser != null
@@ -71,6 +86,6 @@ class TypeData(
     val hasSupplier: Boolean = s.supplier != null
 
     val properties: List<String> = s.allProperties.map { it.name() }.sorted()
-    val before = snapshot.before.toList().cleaning()
-    val after = snapshot.after.toList().cleaning()
+    val before = (snapshot?.before ?: s.before() ?: emptySet()).toList().cleaning()
+    val after = (snapshot?.after ?: s.after() ?: emptySet()).toList().cleaning()
 }

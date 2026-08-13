@@ -1,10 +1,16 @@
 package jp.nlaocs.skriptSyntaxGenerator.util
 
+import ch.njol.skript.classes.ClassInfo
+import ch.njol.skript.classes.Parser
 import ch.njol.skript.expressions.base.EventValueExpression
 import ch.njol.skript.expressions.base.PropertyExpression
+import ch.njol.skript.lang.ParseContext
+import ch.njol.skript.localization.Language
+import jp.nlaocs.skriptSyntaxGenerator.data.TypeLiteralData
 import org.skriptlang.skript.registration.SyntaxInfo
 import org.skriptlang.skript.util.Priority
 import java.util.Locale
+import java.util.function.Supplier
 
 // --- Annotation Extensions ---
 inline fun <reified T : Annotation> Class<*>.anno(): T? =
@@ -45,13 +51,105 @@ fun Class<*>.getTypeStr(): String = when {
 fun Class<*>.stableName(): String =
     if (isArray) "${componentType.stableName()}[]" else name
 
-fun Class<*>.toStringListSafe(): List<String> {
+fun Class<*>.enumValues(): List<String> {
     if (!isEnum) return emptyList()
-    return (enumConstants as Array<Enum<*>>).map { constant ->
-        constant.name
-            .lowercase(Locale.ENGLISH)
-            .replace('_', ' ')
+    return enumConstants.mapNotNull { constant ->
+        (constant as? Enum<*>)?.name
+            ?.lowercase(Locale.ENGLISH)
+            ?.replace('_', ' ')
     }
+}
+
+fun ClassInfo<*>.parserPatterns(): List<String>? = parserPatterns(parser)
+
+internal fun parserPatterns(parser: Any?): List<String>? {
+    parser ?: return null
+    val method = parser.javaClass.methods.firstOrNull {
+        it.name == "getPatterns" && it.parameterCount == 0 && it.returnType.isArray
+    } ?: return null
+    return runCatching { method.invoke(parser) }
+        .getOrNull()
+        ?.let { patterns ->
+            (0 until java.lang.reflect.Array.getLength(patterns))
+                .mapNotNull { index -> java.lang.reflect.Array.get(patterns, index) as? String }
+                .cleaning()
+        }
+}
+
+@Suppress("UNCHECKED_CAST")
+fun ClassInfo<*>.literalValues(): List<String>? = literalValues(parser, supplier)
+
+fun ClassInfo<*>.typeLiterals(): List<TypeLiteralData>? = typeLiterals(parser, supplier)
+
+fun ClassInfo<*>.parseContexts(): List<String>? {
+    val parser = parser ?: return null
+    return ParseContext.entries
+        .filter { context -> runCatching { parser.canParse(context) }.getOrDefault(false) }
+        .map { it.name }
+        .ifEmpty { null }
+}
+
+@Suppress("UNCHECKED_CAST")
+internal fun literalValues(
+    parser: Parser<*>?,
+    supplier: Supplier<out Iterator<*>>?
+): List<String>? {
+    val typedParser = parser as? Parser<Any> ?: return null
+    supplier ?: return null
+    return runCatching {
+        supplier.get()
+            .asSequence()
+            .mapNotNull { value ->
+                runCatching { typedParser.toString(value, 0) }
+                    .getOrNull()
+                    ?.trim()
+                    ?.takeIf(String::isNotEmpty)
+            }
+            .distinct()
+            .toList()
+            .ifEmpty { null }
+    }.getOrNull()
+}
+
+@Suppress("UNCHECKED_CAST")
+internal fun typeLiterals(
+    parser: Parser<*>?,
+    supplier: Supplier<out Iterator<*>>?
+): List<TypeLiteralData>? {
+    val typedParser = parser as? Parser<Any> ?: return null
+    supplier ?: return null
+    return runCatching {
+        supplier.get()
+            .asSequence()
+            .mapNotNull { value ->
+                value ?: return@mapNotNull null
+                val text = parserText { typedParser.toString(value, 0) } ?: return@mapNotNull null
+                TypeLiteralData(
+                    text = text,
+                    pluralText = parserText { typedParser.toString(value, Language.F_PLURAL) }
+                        ?.takeUnless { it == text },
+                    variableName = parserText { typedParser.toVariableNameString(value) },
+                    debugText = parserText { typedParser.getDebugMessage(value) }
+                        ?.takeUnless { it == text },
+                    valueClass = value.javaClass,
+                    representedClass = representedClass(value),
+                    enumConstant = (value as? Enum<*>)?.name
+                )
+            }
+            .distinct()
+            .toList()
+            .ifEmpty { null }
+    }.getOrNull()
+}
+
+private inline fun parserText(value: () -> String?): String? =
+    runCatching(value).getOrNull()?.trim()?.takeIf(String::isNotEmpty)
+
+private fun representedClass(value: Any): Class<*>? {
+    val method = value.javaClass.methods.firstOrNull {
+        it.name == "getType" && it.parameterCount == 0 && it.returnType == Class::class.java
+    } ?: return null
+    return runCatching { method.invoke(value) as? Class<*> }.getOrNull()
 }
 
 fun <T> Collection<T>?.nullIfEmpty(): List<T>? =
@@ -61,7 +159,7 @@ fun <T> Array<T>?.toListOrNullIfEmpty(): List<T>? =
     this?.toList()?.ifEmpty { null }
 
 // listの中のstringをtrimして空文字のものを除外するやつ、nullのものも除外、すべて空文字の場合nullを返す
-fun List<String?>?.cleaning(): List<String?>? {
+fun List<String?>?.cleaning(): List<String>? {
     if (this == null) return null
     val cleaned = this.mapNotNull { it?.trim()?.takeIf { value -> value.isNotEmpty() } }
     return cleaned.ifEmpty { null }

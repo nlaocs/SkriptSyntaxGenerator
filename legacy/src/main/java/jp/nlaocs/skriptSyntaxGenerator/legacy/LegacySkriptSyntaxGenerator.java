@@ -40,7 +40,7 @@ public final class LegacySkriptSyntaxGenerator extends JavaPlugin implements Com
                 if (isAcceptingRegistrations()) {
                     if (attempt >= MAX_REGISTRATION_WAIT_TICKS) {
                         getLogger().severe("Timed out waiting for Skript registrations to finish.");
-                        Bukkit.shutdown();
+                        Runtime.getRuntime().halt(1);
                     } else {
                         waitForSkriptRegistrations(attempt + 1);
                     }
@@ -52,6 +52,7 @@ public final class LegacySkriptSyntaxGenerator extends JavaPlugin implements Com
                     getLogger().info("Automated legacy Skript syntax generation completed!");
                 } catch (Throwable throwable) {
                     getLogger().log(Level.SEVERE, "Automated legacy Skript syntax generation failed.", throwable);
+                    Runtime.getRuntime().halt(1);
                 } finally {
                     Bukkit.shutdown();
                 }

@@ -105,7 +105,17 @@ class FunctionData(s: Function<*>, val registrationOrder: Int) : Documentable, A
                 }
             }
 
-            else -> error("unreachable")
+            else -> {
+                since = null
+                description = null
+                examples = null
+                keywords = null
+                requires = null
+
+                addon = requireNotNull(AddonResolver.fromClass(s.javaClass)) {
+                    "Unable to resolve addon for function " + s.name
+                }
+            }
         }
     }
 }

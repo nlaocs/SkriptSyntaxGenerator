@@ -30,6 +30,24 @@ class PluralRulesReaderTest {
     }
 
     @Test
+    fun `reads legacy object rules without complete word metadata`() {
+        val data = PluralRulesReader.readRaw(
+            listOf(
+                FakeLegacyWordEnding("child", "children"),
+                FakeLegacyWordEnding("", "s")
+            ),
+            false,
+            skript,
+            emptyList()
+        )
+
+        assertEquals(PluralAlgorithm.LEGACY_FIRST_MATCH, data.algorithm)
+        assertEquals(listOf("child", ""), data.rules.map { it.singular })
+        assertEquals(listOf("children", "s"), data.rules.map { it.plural })
+        assertEquals(listOf(null, null), data.rules.map { it.completeWord })
+    }
+
+    @Test
     fun `attributes addFirst overrides in effective runtime order`() {
         val overrides = listOf(
             PluralOverrideRegistration("first", "firsts", 0, addon),
@@ -73,5 +91,13 @@ class PluralRulesReaderTest {
         fun singular(): String = singular
         fun plural(): String = plural
         fun isCompleteWord(): Boolean = completeWord
+    }
+
+    private data class FakeLegacyWordEnding(
+        private val singular: String,
+        private val plural: String
+    ) {
+        fun singular(): String = singular
+        fun plural(): String = plural
     }
 }

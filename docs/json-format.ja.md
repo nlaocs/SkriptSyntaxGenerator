@@ -255,14 +255,32 @@ typeはnumber、player、locationなどのSkript型を、Javaでの解析・変�
 | `userInputPatterns` | `array<string>` | 省略可 | この型のparserが受け入れるregex。直接text解析patternがなければ省略。 |
 | `noun` | `NounData` | 必須 | localized単数・複数名と文法gender。 |
 | `serializeAs` | class-name | 省略可 | serializerを借用する別Java class。 |
-| `usage` | `array<string>` | 省略可 | 人間向けの入力候補。enumなら正規化したenum constantを通常含む。 |
+| `usage` | `array<string>` | 省略可 | 型登録が提供するドキュメント用の説明。機械的にparseできるliteral一覧とは限らない。 |
+| `enumValues` | `array<string>` | 省略可 | 正規化したJava enum constant名。このフィールドがあってもSkript parserがあるとは限らないため、`hasParser`も確認する。 |
+| `parserPatterns` | `array<string>` | 省略可 | patternを公開する型parserが受理する完全一致の表記。ローカライズされたenumの別名も含む。 |
+| `literalValues` | `array<string>` | 省略可 | parserと有限supplierの両方を持つ型について、supplierの全値をparserで文字列化した標準表記。 |
+| `typeLiterals` | `array<TypeLiteralData>` | 省略可 | 有限supplier値の構造化情報。型固有の手動補正をせず、parser表記とruntime identityを保持する。 |
+| `parserClass` | class-name | 省略可 | この型のSkript parserを実装するruntime class。 |
+| `parseContexts` | `array<string>` | 省略可 | parserが入力を受理すると報告した`ParseContext`名。 |
 | `defaultExpressionClass` | class-name | 省略可 | context依存のdefault値を供給するclass。 |
 | `hasParser` | boolean | 必須 | textからこの型を直接parseできるか。 |
 | `hasSerializer` | boolean | 必須 | Skriptが値を永続化できるか。 |
-| `hasSupplier` | boolean | 必須 | 新しいsupplier APIを持つか。legacy adapterは`false`。 |
+| `hasSupplier` | boolean | 必須 | 有限値iteratorを供給するsupplierを持つか。 |
 | `properties` | `array<string>` | 必須 | この型に登録されたproperty名。legacy adapterでは現在`[]`なので、利用可能なら`Properties.json`を見る。 |
 | `before` | `array<string>` | 省略可 | この型より後にparseするよう要求したtype code name。つまりこの型が先。current adapterのみで、空なら省略。 |
 | `after` | `array<string>` | 省略可 | この型より先にparseするよう要求したtype code name。つまりこの型が後。current adapterのみで、空なら省略。 |
+
+`TypeLiteralData`:
+
+| フィールド | 型 | 有無 | 意味 |
+| --- | --- | --- | --- |
+| `text` | string | 必須 | `Parser.toString(value, 0)`が返す標準message表記。 |
+| `pluralText` | string | 省略可 | Skriptのplural flagで得た表記。`text`と同じなら省略。 |
+| `variableName` | string | 省略可 | 値をSkript変数名へ埋め込む際の安定表記。 |
+| `debugText` | string | 省略可 | parserが返すdebug表記。`text`と同じなら省略。 |
+| `valueClass` | class-name | 必須 | supplier値のruntime Java class。登録typeのclassより具体的な場合がある。 |
+| `representedClass` | class-name | 省略可 | supplier値が公開する引数なし`getType(): Class`の結果。例えばEntityData値なら、表しているBukkit entity classを保持できる。 |
+| `enumConstant` | string | 省略可 | supplier値がenumなら正確なJava enum constant名。 |
 
 `NounData`:
 
