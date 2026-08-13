@@ -36,7 +36,7 @@ class SkriptSyntaxGenerator : JavaPlugin() {
             if (Skript.isAcceptRegistrations()) {
                 if (attempt >= MAX_REGISTRATION_WAIT_TICKS) {
                     logger.severe("Timed out waiting for Skript registrations to finish.")
-                    Bukkit.shutdown()
+                    Runtime.getRuntime().halt(1)
                 } else {
                     waitForSkriptRegistrations(attempt + 1)
                 }
@@ -49,6 +49,7 @@ class SkriptSyntaxGenerator : JavaPlugin() {
                 logger.info("Automated Skript syntax generation completed!")
             } catch (throwable: Throwable) {
                 logger.log(Level.SEVERE, "Automated Skript syntax generation failed.", throwable)
+                Runtime.getRuntime().halt(1)
             } finally {
                 Bukkit.shutdown()
             }
