@@ -170,6 +170,11 @@ object SnapshotValidator {
             expectedEventValueMetadata,
             errors
         )
+        validateKnownFunctionOverloads(
+            documents.getValue("Functions.json"),
+            expectedSkriptVersion,
+            errors
+        )
         validateClassHierarchy(documents.getValue("ClassHierarchy.json"), errors)
 
         if (errors.isNotEmpty()) {
@@ -408,6 +413,28 @@ object SnapshotValidator {
         expect(ids.size == nodes.size, errors) { "${nodes.size - ids.size} registrations have no registrationId" }
         val duplicates = ids.groupingBy(String::toString).eachCount().filterValues { it > 1 }.keys
         expect(duplicates.isEmpty(), errors) { "Duplicate registrationIds: ${duplicates.take(5)}" }
+    }
+
+    private fun validateKnownFunctionOverloads(
+        functions: JsonNode,
+        skriptVersion: String?,
+        errors: MutableList<String>
+    ) {
+        val parts = skriptVersion
+            ?.removePrefix("v")
+            ?.substringBefore('-')
+            ?.split('.')
+            ?.mapNotNull(String::toIntOrNull)
+            .orEmpty()
+        if (parts.size < 2 || parts[0] < 2 || (parts[0] == 2 && parts[1] < 15)) return
+
+        val vectorArities = functions
+            .filter { it["name"]?.asText() == "vector" }
+            .map { it["parameters"]?.size() ?: -1 }
+            .toSet()
+        expect(vectorArities.containsAll(setOf(1, 3)), errors) {
+            "Functions.json must retain both vector(n) and vector(x, y, z) overloads"
+        }
     }
 
     private fun validateProviders(root: JsonNode, fileName: String, errors: MutableList<String>) {
