@@ -72,12 +72,20 @@ public final class PluralRulesReader {
                 rules.add(new RawRule(pair[0], pair[1], null));
             }
         } else {
-            algorithm = PluralAlgorithm.SINGULAR_AWARE;
+            boolean completeWordSupported = findMethod(
+                entries.get(0).getClass(),
+                "isCompleteWord"
+            ) != null;
+            algorithm = completeWordSupported
+                ? PluralAlgorithm.SINGULAR_AWARE
+                : PluralAlgorithm.LEGACY_FIRST_MATCH;
             for (Object entry : entries) {
                 rules.add(new RawRule(
                     stringValue(invoke(entry, "singular"), "singular"),
                     stringValue(invoke(entry, "plural"), "plural"),
-                    booleanValue(invoke(entry, "isCompleteWord"), "isCompleteWord")
+                    completeWordSupported
+                        ? booleanValue(invoke(entry, "isCompleteWord"), "isCompleteWord")
+                        : null
                 ));
             }
         }
