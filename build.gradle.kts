@@ -3,7 +3,7 @@ import xyz.jpenilla.runpaper.task.RunServer
 
 plugins {
     kotlin("jvm") version "2.3.20-RC"
-    id("com.gradleup.shadow") version "8.3.0"
+    id("com.gradleup.shadow") version "8.3.10"
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
@@ -25,8 +25,8 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("com.github.SkriptLang:Skript:2.14.2")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
-    implementation("net.bytebuddy:byte-buddy:1.14.10")
-    implementation("net.bytebuddy:byte-buddy-agent:1.14.10")
+    implementation("net.bytebuddy:byte-buddy:1.17.0")
+    implementation("net.bytebuddy:byte-buddy-agent:1.17.0")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
@@ -99,14 +99,6 @@ tasks.processResources {
 
 enum class GeneratorAdapter { MODERN, REFLECTIVE }
 
-data class ServerJarRequirement(
-    val gradleProperty: String,
-    val environmentVariable: String
-)
-
-val paper1122 = ServerJarRequirement("skriptSyntaxGenerator.paper1122Jar", "PAPER_1122_JAR")
-val paper1202 = ServerJarRequirement("skriptSyntaxGenerator.paper1202Jar", "PAPER_1202_JAR")
-val paper121 = ServerJarRequirement("skriptSyntaxGenerator.paper121Jar", "PAPER_121_JAR")
 val dummyAddonVersion = providers.gradleProperty("skriptSyntaxGenerator.dummyAddonVersion")
     .orElse("1.1.0")
     .get()
@@ -121,7 +113,6 @@ data class IntegrationProfile(
     val syntaxApi: String,
     val eventValueShape: String,
     val port: Int? = null,
-    val serverJar: ServerJarRequirement? = null,
     val skriptAssetOverride: String? = null,
     val status: String = "active",
     val blocker: String? = null
@@ -160,37 +151,36 @@ data class IntegrationProfile(
 val integrationProfiles = listOf(
     IntegrationProfile(
         "skript-2.6.4", "Legacy264", "1.12.2", "2.6.4", 8,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25600,
-        paper1122
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25600
     ),
     IntegrationProfile(
         "skript-2.7.3", "Legacy273", "1.20.2", "2.7.3", 17,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25601, paper1202,
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25601,
         skriptAssetOverride = "Skript.jar"
     ),
     IntegrationProfile(
         "skript-2.8.7", "Legacy287", "1.20.2", "2.8.7", 17,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25602, paper1202
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25602
     ),
     IntegrationProfile(
         "skript-2.9.5", "Legacy295", "1.21", "2.9.5", 21,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25603, paper121
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25603
     ),
     IntegrationProfile(
         "skript-2.10.2", "Legacy2102", "1.21", "2.10.2", 21,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25604, paper121
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25604
     ),
     IntegrationProfile(
         "skript-2.11.2", "Legacy2112", "1.21", "2.11.2", 21,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25605, paper121
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25605
     ),
     IntegrationProfile(
         "skript-2.12.2", "Legacy2122", "1.21", "2.12.2", 21,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25606, paper121
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25606
     ),
     IntegrationProfile(
         "skript-2.13.2", "Legacy2132", "1.21", "2.13.2", 21,
-        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25607, paper121
+        GeneratorAdapter.REFLECTIVE, "legacy-static", "legacy-static", 25607
     ),
     IntegrationProfile(
         "skript-2.14.3", "Modern2143", "1.21.11", "2.14.3", 21,
@@ -218,11 +208,15 @@ val integrationProfiles = listOf(
     ),
     IntegrationProfile(
         "minecraft-26.1.2", "Minecraft2612", "26.1.2", "2.15.4", 25,
-        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25614
+        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25614,
+        status = "experimental",
+        blocker = "Paper 26 plugin isolation prevents complete registration hook capture."
     ),
     IntegrationProfile(
         "minecraft-26.2", "Minecraft262", "26.2", "2.16.0", 25,
-        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25615
+        GeneratorAdapter.MODERN, "registry", "modern-2.16", 25615,
+        status = "experimental",
+        blocker = "Paper 26 plugin isolation prevents complete registration hook capture."
     ),
     IntegrationProfile(
         "legacy-1.8.8", "Legacy188", "1.8.8", "final-for-1.8", 8,
@@ -232,22 +226,15 @@ val integrationProfiles = listOf(
     )
 )
 
-val activeIntegrationValidations = integrationProfiles
-    .filter { it.status == "active" }
-    .map { profile ->
+val integrationValidations = integrationProfiles
+    .filter { it.status != "planned" }
+    .associateWith { profile ->
         val output = layout.buildDirectory.dir("integration/${profile.id}/snapshot")
         val server = layout.buildDirectory.dir("integration/${profile.id}/server")
         val fixtureCatalogJar = gradle.gradleUserHomeDir.resolve(
             "caches/run-task-jars/plugins/paper/github/nlaocs/SkriptDummyAddon/" +
                     "$dummyAddonVersion/SkriptDummyAddon-$dummyAddonVersion-skript-${profile.skript}.jar"
         )
-        val configuredServerJar = profile.serverJar?.let { requirement ->
-            layout.file(
-                providers.gradleProperty(requirement.gradleProperty)
-                    .orElse(providers.environmentVariable(requirement.environmentVariable))
-                    .map { project.file(it) }
-            )
-        }
         val runTask = tasks.register<RunServer>("runIntegration${profile.taskSuffix}") {
             group = "verification"
             description =
@@ -269,9 +256,6 @@ val activeIntegrationValidations = integrationProfiles
                 legacyPluginLoading()
             } else {
                 pluginJars(tasks.shadowJar.flatMap { it.archiveFile })
-            }
-            if (configuredServerJar?.isPresent == true) {
-                serverJar(configuredServerJar)
             }
             javaLauncher = project.javaToolchains.launcherFor {
                 languageVersion.set(JavaLanguageVersion.of(profile.java))
@@ -303,17 +287,6 @@ val activeIntegrationValidations = integrationProfiles
             }
 
             doFirst {
-                profile.serverJar?.let { requirement ->
-                    val requiredServerJar = requireNotNull(configuredServerJar)
-                    check(requiredServerJar.isPresent) {
-                        "Set -P${requirement.gradleProperty}=<path> or ${requirement.environmentVariable} " +
-                                "to an executable Paper ${profile.minecraft} server jar."
-                    }
-                    check(requiredServerJar.get().asFile.isFile) {
-                        "Paper ${profile.minecraft} server jar does not exist: " +
-                                requiredServerJar.get().asFile.absolutePath
-                    }
-                }
                 project.delete(output)
                 project.delete(server)
                 server.get().asFile.mkdirs()
@@ -343,6 +316,10 @@ val activeIntegrationValidations = integrationProfiles
         }
     }
 
+val activeIntegrationValidations = integrationValidations
+    .filterKeys { it.status == "active" }
+    .values
+
 tasks.register("integrationTest") {
     group = "verification"
     description = "Runs unit tests and all active server integration profiles."
@@ -351,7 +328,7 @@ tasks.register("integrationTest") {
 
 tasks.register("integrationMatrix") {
     group = "verification"
-    description = "Prints active and planned Skript compatibility profiles."
+    description = "Prints active, experimental, and planned Skript compatibility profiles."
     doLast {
         integrationProfiles.forEach { profile ->
             val blocker = profile.blocker?.let { " - $it" }.orEmpty()

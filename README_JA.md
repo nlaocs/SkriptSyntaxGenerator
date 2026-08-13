@@ -88,12 +88,12 @@ integration suiteでは、現在次の境界をテストしています。
 | 2.8.7 | 1.20.2 | 17 | reflective |
 | 2.9.5-2.13.2 | 1.21 | 21 | reflective |
 | 2.14.3-2.16.0 | 1.21.11 | 21 | current API |
-| 2.15.4 | 26.1.2 | 25 | current API |
-| 2.16.0 | 26.2 | 25 | current API |
+| 2.15.4 | 26.1.2 | 25 | experimental current API |
+| 2.16.0 | 26.2 | 25 | experimental current API |
 
 `2.6.4 + Minecraft 1.12.2 + Java 8`のprofileは、推測上の対応範囲ではなく、必須の互換性テストです。
 
-Minecraft 1.16.5、1.17.1、1.18.2、26.1.2、26.2は、[SkriptのbStats Minecraft Version chart](https://bstats.org/plugin/bukkit/Skript/722)を基に選んだ代表patchです。chartの値は時間とともに変動します。これらのprofileは、Skript API境界profileを置き換えず、現在利用者の多いMinecraft系列を追加で検証します。対話的な`runServer` taskでは、Paper 1.21.11上でSkript 2.15.4を使用します。
+Minecraft 1.16.5、1.17.1、1.18.2、26.1.2、26.2は、[SkriptのbStats Minecraft Version chart](https://bstats.org/plugin/bukkit/Skript/722)を基に選んだ代表patchです。chartの値は時間とともに変動します。Paper 26ではplugin class loaderの分離により登録hookを完全には取得できないため、該当profileは明示実行できるexperimental taskとして残し、`integrationTest`からは除外します。対話的な`runServer` taskでは、Paper 1.21.11上でSkript 2.15.4を使用します。
 
 マトリクスを表示するには、次を実行します。
 
@@ -107,16 +107,12 @@ Minecraft 1.16.5、1.17.1、1.18.2、26.1.2、26.2は、[SkriptのbStats Minecra
 .\gradlew.bat test
 ```
 
-一部のアーカイブされたPaperバージョンでは、実行可能なserver jarをGradle property、または対応する環境変数で指定する必要があります。
+すべてのintegration profileを実行するには、次を実行します。
 
 ```powershell
-.\gradlew.bat `
-  '-PskriptSyntaxGenerator.paper1122Jar=C:\path\to\paper-1.12.2.jar' `
-  '-PskriptSyntaxGenerator.paper1202Jar=C:\path\to\paper-1.20.2.jar' `
-  '-PskriptSyntaxGenerator.paper121Jar=C:\path\to\paper-1.21.jar' `
-  integrationTest
+.\gradlew.bat integrationTest
 ```
 
-対応する環境変数は、`PAPER_1122_JAR`、`PAPER_1202_JAR`、`PAPER_121_JAR`です。Paper 1.16.5、1.17.1、1.18.2は、Paperの現行Downloads Serviceから自動取得されます。26.1.2および26.2 profileはJava 25を使用します。Java 25がインストールされていない場合は、Foojay toolchain resolverが対応するJDKを自動取得します。
+すべてのactive profileで、対応するPaper buildをPaper Downloads Serviceから自動取得します。experimental profileを明示実行した場合も同様です。26.1.2および26.2 profileはJava 25を使用します。Java 25がインストールされていない場合は、Foojay toolchain resolverが対応するJDKを自動取得します。
 
 各profileは対応するSkriptDummyAddonのRelease artifactをダウンロードして実サーバーを起動し、スナップショットを生成して全JSONファイルをparseします。その後、Manifestとprofile capability、global alias target、必須registryに加え、addon JAR内のfixture catalogで対象バージョンに適用されるすべてのassertionを検証します。デフォルトのfixture releaseは`1.1.0`で、`-PskriptSyntaxGenerator.dummyAddonVersion=<version>`により変更できます。catalogは各versionにおけるfixtureの意味を記述します。legacy adapterでは、取得不能と文書化されているfield（expression implementation metadataとtype registration ordering）だけを値比較から除外しますが、fixture record自体の存在は必須です。current adapterではそれらのfieldも比較します。

@@ -127,11 +127,17 @@ object ExpressionBytecodeAnalyzer {
             ?: ClassLoader.getSystemResourceAsStream(resourceName)
             ?: return null
 
-        return stream.use {
-            val visitor = BytecodeClassVisitor()
-            ClassReader(it).accept(visitor, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
-            visitor.toBytecodeClass()
-        }.also {
+        val bytecode = try {
+            stream.use {
+                val visitor = BytecodeClassVisitor()
+                ClassReader(it).accept(visitor, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
+                visitor.toBytecodeClass()
+            }
+        } catch (_: IllegalArgumentException) {
+            return null
+        }
+
+        return bytecode.also {
             classCache[type] = it
         }
     }
