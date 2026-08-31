@@ -2,13 +2,13 @@
 
 English | [日本語](README_JA.md)
 
-Generates a server-specific Skript syntax snapshot for LSP and tooling use. The snapshot records the active Skript version, server, plugins, registration order, capabilities, and 18 data files behind a stable schema.
+Generates a server-specific Skript syntax snapshot for LSP and tooling use. The snapshot records the active Skript version, server, plugins, registration order, capabilities, and 19 data files behind a stable schema.
 
 For a field-by-field description of every generated file, including nullability, value ranges, concepts, and version differences, see the [snapshot JSON format reference](docs/json-format.md).
 
 ## Generator artifacts
 
-Two adapters write the same 19-file snapshot contract:
+Two adapters write the same 20-file snapshot contract:
 
 | Skript | Artifact | Runtime |
 | --- | --- | --- |
@@ -17,11 +17,11 @@ Two adapters write the same 19-file snapshot contract:
 
 Place the matching artifact in the server's `plugins` directory, start the server, and run `/skgen`. Files are written to `plugins/SkriptSyntaxGenerator` by default. A server snapshot should be generated again whenever the server, Skript, installed addons, or addon load order changes.
 
-Both adapters always emit the same files. Features unavailable in an older Skript version use the contract's empty root (`[]`, `{}` for `Operations.json`, or the documented object roots for `Aliases.json` and `PluralRules.json`) and are described by `Manifest.json.capabilities`.
+Both adapters always emit the same files. Features unavailable in an older Skript version use the contract's empty root (`[]`, `{}` for `Operations.json`, or the documented object roots for `Aliases.json`, `Language.json`, and `PluralRules.json`) and are described by `Manifest.json.capabilities`.
 
 ## Manifest capabilities
 
-`Manifest.json` uses schema version 4 and records:
+`Manifest.json` uses schema version 5 and records:
 
 - `syntaxApi`: `legacy-static` or `registry`
 - `eventValueApi`: `legacy`, `modern-2.15`, or `modern-2.16`
@@ -29,6 +29,8 @@ Both adapters always emit the same files. Features unavailable in an older Skrip
 - `aliases.supported` and `aliases.collected`
 
 `Aliases.json` snapshots aliases registered globally by Skript and addons. Per-script aliases declared through an `aliases:` section are stored in script-local child providers and are outside the generator's data model, so user script contents never become part of the snapshot.
+
+`Language.json` contains the effective key/value map loaded by Skript's global `Language` registry. It is collected from Skript's runtime maps, includes Skript and addon language entries, and never reads user `.sk` files or script-local providers. Generation fails if the runtime registry cannot be inspected, so an empty object always means the loaded registry itself was empty.
 
 `PluralRules.json` stores the exact runtime English singular/plural table, its algorithm, evaluation order, complete-word behavior, and the addon responsible for each runtime override. This lets an LSP reproduce Skript parsing without shipping a hardcoded copy of the rules.
 

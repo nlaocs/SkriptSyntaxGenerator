@@ -2,7 +2,7 @@
 
 English | [Japanese](json-format.ja.md)
 
-This document describes schema version `4`, the 19 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
+This document describes schema version `5`, the 20 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
 
 ## Reading the format
 
@@ -58,9 +58,10 @@ Consumers should read `Manifest.json` first. Do not infer support only from a Sk
 | `Differences.json` | array | Rules for calculating the distance or difference between values. |
 | `ClassHierarchy.json` | array | Java inheritance graph for every class referenced by the snapshot. |
 | `Aliases.json` | object | Globally registered item/block names and their resolved targets. |
+| `Language.json` | object | Effective key/value entries loaded by Skript's global language registry. |
 | `PluralRules.json` | object | Effective English singular/plural conversion rules in runtime priority order. |
 
-Every file is always emitted. The empty root is `[]` for array files, `{}` for `Operations.json`, `{"aliases":{},"targets":[]}` for `Aliases.json`, and `{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}` for `PluralRules.json`.
+Every file is always emitted. The empty root is `[]` for array files, `{}` for `Operations.json` and `Language.json`, `{"aliases":{},"targets":[]}` for `Aliases.json`, and `{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}` for `PluralRules.json`.
 
 ## Shared objects
 
@@ -173,7 +174,8 @@ An event record adds:
 | --- | --- | --- | --- |
 | `referenceEvents` | `array<class-name>` | Required | Bukkit event classes that can cause this Skript event to run. |
 | `eventValues` | `array<EventValueRecord>` | Required | Event values available for this event after inheritance/exclusion checks. Empty explicitly means none. |
-| `cancellable` | boolean | Required | `true` only when `referenceEvents` is nonempty and every referenced Bukkit event implements `Cancellable`. |
+| `cancellable` | boolean | Required | `true` when at least one referenced Bukkit event implements `Cancellable`, or is `BlockCanBuildEvent`, matching Skript's event documentation semantics. |
+| `prioritySupported` | boolean | Optional | Result of the registered Skript event instance's `isEventPrioritySupported()`. Omitted when the runtime cannot construct or inspect the instance. |
 | `hasOnPrefix` | boolean | Required | Whether the registered display name starts with `On `. Useful when normalizing event documentation names. |
 
 The inline event-value objects use the same shape as `EventValues.json`.
@@ -368,6 +370,8 @@ An event value is a typed value available only while handling a compatible Bukki
 | `patterns` | `array<string>` | Modern API only | Registry-defined textual patterns/qualifiers for the event value. Empty means no extra qualifier. |
 | `acceptedChangers` | change-mode map | Modern API only | Ways the event value can be changed. `{}` means read-only. |
 | `contextDependent` | boolean | Modern API only | Whether availability depends on more context than the event/value classes alone. |
+| `hasCustomInputValidator` | boolean | Modern API only | Whether matching an identifier also executes addon-defined validation beyond the exported patterns. A reader that cannot run it must treat the result as unresolved. |
+| `hasCustomEventValidator` | boolean | Modern API only | Whether availability also executes addon-defined validation against the current event class. A reader that cannot run it must treat the result as unresolved. |
 | `addon` | `AddonInfo` | Required | Registering plugin, possibly `unknown`. |
 | `registrationId` | string | Required | Opaque deterministic registration ID. |
 
@@ -439,7 +443,7 @@ Each record has required `type` (input class), `returnType` (difference result c
 
 ### `ClassHierarchy.json`
 
-This file closes the Java type graph over every class referenced elsewhere, including superclasses, interfaces, and array components. It lets a consumer answer assignability questions without loading server classes.
+This file closes the Java type graph over every class referenced by the other catalog files, including superclasses, interfaces, and array components. It lets a consumer answer assignability questions without loading server classes. Method parameter and return names are exact reflection metadata and may name classes outside this graph; recursively expanding every JDK and plugin method signature would make the graph unbounded and is unnecessary for exact `methodExists` checks.
 
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
@@ -449,7 +453,20 @@ This file closes the Java type graph over every class referenced elsewhere, incl
 | `superClass` | class-name | Optional | Direct superclass. Omitted for roots/interfaces where Java reports none. |
 | `interfaces` | `array<class-name>` | Required | Direct interfaces, sorted. Empty is valid. |
 | `componentType` | class-name | Array only | Component class of an array. |
+| `methods` | `array<ClassMethodData>` | Required | Methods declared directly by this class, equivalent to `Class.getDeclaredMethods()`. Includes every visibility and synthetic/bridge method; entries are deduplicated and sorted by exact signature. Generation fails if reflection is unavailable rather than emitting an incomplete schema 5 record. |
+| `containerElementType` | class-name | Optional | Element class declared by Skript's runtime `@ContainerType` annotation. Consumers use it when a single `Container` value is exposed as multiple loop values. |
 | `provider` | `AddonInfo` | Optional | Plugin whose classloader/code source owns the class. Core/JDK or unresolved classes may have no provider. |
+
+`ClassMethodData`:
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `name` | string | Required | Java method name. |
+| `parameterTypes` | `array<class-name>` | Required | Exact raw parameter classes from `Method.getParameterTypes()`, in declaration order. `[]` represents a no-argument method. |
+| `returnType` | class-name | Required | Exact raw return class from `Method.getReturnType()`. |
+| `static` | boolean | Required | Whether `Modifier.isStatic(method.getModifiers())` is true. This is metadata; Skript's `methodExists` predicate matches name and parameters, and optionally return type, without using visibility or staticness. |
+
+The signature identity is `name + exact parameterTypes + returnType + static`. A consumer reproducing `Skript.methodExists` should inspect only the queried class record, without walking its superclass or interfaces, then match the method name and ordered parameter class names exactly. Synthetic and bridge methods are retained because they are returned by `getDeclaredMethods()` and are addressable by declared-method lookup; only records with the same four identity fields are collapsed. All method records use the same canonical signature order, so their order is stable across runs and adapters.
 
 ### `Aliases.json`
 
@@ -512,19 +529,32 @@ The current adapter instruments `Utils.addPluralOverride` before Skript loads. T
 
 Skript sources: [legacy `Utils.java` in 2.6.4](https://github.com/SkriptLang/Skript/blob/2.6.4/src/main/java/ch/njol/skript/util/Utils.java) and [singular-aware `Utils.java` in 2.14.3](https://github.com/SkriptLang/Skript/blob/2.14.3/src/main/java/ch/njol/skript/util/Utils.java). Generator paths: `snapshot-contract/src/main/java/jp/nlaocs/skriptSyntaxGenerator/generator/PluralRulesReader.java` and `src/main/java/jp/nlaocs/skriptSyntaxGenerator/hook/RegisterPluralOverrideHook.java`.
 
+### `Language.json`
+
+Root: object. Each property name is a loaded language key and each property value is the effective string returned by Skript's language lookup. The map is sorted by key for deterministic output.
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `<language-key>` | string | Entry-dependent | The runtime language key, such as a parser message or a localized noun key. |
+| `<language-value>` | string | Entry-dependent | The string loaded for that key. Empty strings are retained because they are distinct from a missing key. |
+
+The reader merges `localizedLanguage` first and `defaultLanguage` second, matching Skript's `Language.get_i` lookup where the default map wins on a collision. Only the global runtime maps are copied; script files and script-local providers are never inspected. If the historical `Language` class, its private fields, or their string map shape cannot be read, snapshot generation fails rather than emitting ambiguous empty or partial data.
+
+Skript sources: [`Language.java` in 2.6.4](https://github.com/SkriptLang/Skript/blob/2.6.4/src/main/java/ch/njol/skript/localization/Language.java) and [`Language.java` in 2.16.0](https://github.com/SkriptLang/Skript/blob/2.16.0/src/main/java/ch/njol/skript/localization/Language.java). Generator path: `snapshot-contract/src/main/java/jp/nlaocs/skriptSyntaxGenerator/generator/LanguageReader.java`.
+
 ## `Manifest.json`
 
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | Required | Exact value `4` for this document. Reject or negotiate unknown major schema values. |
+| `schemaVersion` | int | Required | Exact value `5` for this document. Reject or negotiate unknown major schema values. |
 | `snapshotId` | sha256 | Required | Identity derived from schema, content, server, language, plugin list, capabilities, and file list. |
-| `contentDigest` | sha256 | Required | Digest of the 18 serialized data files, excluding the manifest. |
+| `contentDigest` | sha256 | Required | Digest of the 19 serialized data files, excluding the manifest. |
 | `generatedAt` | ISO-8601 string | Required | UTC `Instant` timestamp. It is not part of `snapshotId`. |
 | `server` | `ServerManifestData` | Required | Runtime server identity. |
 | `language` | string | Required | Active Skript language; legacy collection may use `unknown`. Language affects localized type nouns. |
 | `plugins` | `array<PluginManifestData>` | Required | Installed plugins in Bukkit load order. |
 | `capabilities` | `SnapshotCapabilitiesData` | Required | API shapes and supported registries. |
-| `files` | `array<string>` | Required | Sorted list of all 19 expected filenames, including `Manifest.json`. |
+| `files` | `array<string>` | Required | Sorted list of all 20 expected filenames, including `Manifest.json`. |
 
 `ServerManifestData` has required string fields `name`, `version`, `bukkitVersion`, `minecraftVersion`, and `javaVersion`.
 
@@ -562,6 +592,7 @@ The tested compatibility matrix is maintained in the main README. The important 
 | Expression multiplicity/changers and implementation metadata | Legacy adapter keeps multiplicity/changer state unresolved and omits current implementation metadata. Current adapter resolves it where bytecode/instance inspection is safe. |
 | Event values | Legacy shape through 2.14.x; modern registry fields from 2.15.x. Always trust `eventValueApi`. |
 | Global aliases | Collected in every tested version. Script-local aliases are always excluded. |
+| Language registry | The effective global key/value map is collected from the private runtime maps in every tested version. If reflective access is unavailable, generation fails rather than emitting an ambiguous empty registry. |
 
 ### Structures before 2.7
 
@@ -595,4 +626,5 @@ The old global alias store is visible in [`Aliases.java`](https://github.com/Skr
 6. Resolve `Aliases.json.aliases[text]` through `targets[index]` and validate the index.
 7. Use `ClassHierarchy.json` and `Types.json.assignableTo` for assignability rather than assuming Java classes are available to the LSP process.
 8. Apply `PluralRules.json.rules` in `ruleOrder` and select behavior from `algorithm`; do not substitute a built-in English inflector.
-9. Regenerate the snapshot whenever the server, Skript, addons, addon versions, language, or plugin load order changes.
+9. Use `Language.json` for runtime-localized keys and values instead of shipping a second hardcoded language table.
+10. Regenerate the snapshot whenever the server, Skript, addons, addon versions, language, or plugin load order changes.
