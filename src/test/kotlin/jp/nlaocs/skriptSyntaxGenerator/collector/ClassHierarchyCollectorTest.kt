@@ -1,42 +1,38 @@
 package jp.nlaocs.skriptSyntaxGenerator.collector
 
-import jp.nlaocs.skriptSyntaxGenerator.data.DifferenceData
-import jp.nlaocs.skriptSyntaxGenerator.data.common.AddonInfo
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.util.AbstractList
-import java.util.ArrayList
+import java.net.URLClassLoader
 
 class ClassHierarchyCollectorTest {
     @Test
-    fun `collector closes over parents interfaces and array components`() {
-        val hierarchy = ClassHierarchyCollector().collect(
-            listOf(
-                DifferenceData(
-                    type = ArrayList::class.java,
-                    returnType = Array<String>::class.java,
-                    registrationOrder = 0,
-                    addon = AddonInfo("Test", "1.0")
-                )
-            )
-        )
-        val byName = hierarchy.associateBy { it.name }
-
-        val arrayList = requireNotNull(byName["java.util.ArrayList"])
-        assertEquals(AbstractList::class.java.name, arrayList.superClass)
-        assertTrue("java.util.List" in arrayList.interfaces)
-        assertTrue("java.util.RandomAccess" in arrayList.interfaces)
-        assertTrue("java.lang.Object" in byName)
-        assertTrue("java.util.Collection" in byName)
-        assertNull(arrayList.provider)
-
-        val stringArray = requireNotNull(byName["java.lang.String[]"])
-        assertEquals("Array", stringArray.kind)
-        assertEquals("java.lang.String", stringArray.componentType)
-        assertTrue("java.lang.String" in byName)
-
-        assertEquals(hierarchy.map { it.name }.sorted(), hierarchy.map { it.name })
+    fun `reads method descriptors when a declared type is unavailable`() {
+        val testClasses = BrokenMethodOwnerFixture::class.java.protectionDomain.codeSource.location
+        val loader = object : URLClassLoader(
+            arrayOf(testClasses),
+            ClassHierarchyCollectorTest::class.java.classLoader
+        ) {
+            override fun loadClass(name: String, resolve: Boolean): Class<*> {
+                if (name == MissingDependencyFixture::class.java.name) {
+                    throw ClassNotFoundException(name)
+                }
+                if (name == BrokenMethodOwnerFixture::class.java.name) {
+                    return findClass(name)
+                }
+                return super.loadClass(name, resolve)
+            }
+        }
+        loader.use {
+            val brokenType = Class.forName(BrokenMethodOwnerFixture::class.java.name, false, loader)
+            val record = ClassHierarchyCollector().collect(listOf(brokenType))
+                .single { it.name == BrokenMethodOwnerFixture::class.java.name }
+            assertTrue(record.methods.any { method ->
+                method.name == "missing" &&
+                    method.parameterTypes == listOf(MissingDependencyFixture::class.java.name) &&
+                    method.returnType == MissingDependencyFixture::class.java.name
+            })
+            assertEquals(1, record.methods.count { it.name == "missing" })
+        }
     }
 }
