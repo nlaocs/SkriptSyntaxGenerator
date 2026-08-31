@@ -28,6 +28,7 @@ class SnapshotFormatTest {
             mapOf("aliases" to emptyMap<String, Any>(), "targets" to emptyList<Any>()),
             normalized.getValue("Aliases.json")
         )
+        assertEquals(emptyMap<String, Any>(), normalized.getValue(SnapshotFormat.LANGUAGE_FILE))
         assertEquals(emptyList<Any>(), normalized.getValue("Types.json"))
     }
 
@@ -42,7 +43,7 @@ class SnapshotFormatTest {
 
     @Test
     fun `manifest is part of all files but not normalized data outputs`() {
-        assertEquals(19, SnapshotFormat.getAllFiles().size)
+        assertEquals(20, SnapshotFormat.getAllFiles().size)
         assertEquals(SnapshotFormat.getAllFiles().sorted(), SnapshotFormat.getAllFiles())
         assertEquals(true, SnapshotFormat.getAllFiles().contains(SnapshotFormat.MANIFEST_FILE))
         assertEquals(false, SnapshotFormat.getDataFiles().contains(SnapshotFormat.MANIFEST_FILE))

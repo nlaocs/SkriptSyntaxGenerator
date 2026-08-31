@@ -11,6 +11,7 @@ import jp.nlaocs.skriptSyntaxGenerator.data.SnapshotCapabilitiesData;
 import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxApi;
 import jp.nlaocs.skriptSyntaxGenerator.data.SyntaxKindCapabilitiesData;
 import jp.nlaocs.skriptSyntaxGenerator.generator.GlobalAliasesReader;
+import jp.nlaocs.skriptSyntaxGenerator.generator.LanguageReader;
 import jp.nlaocs.skriptSyntaxGenerator.generator.PluralRulesReader;
 import jp.nlaocs.skriptSyntaxGenerator.generator.SnapshotFormat;
 import org.bukkit.Bukkit;
@@ -86,6 +87,7 @@ final class LegacySnapshotGenerator {
         outputs.put("Operations.json", arithmetic.collectOperations());
         outputs.put("ClassHierarchy.json", hierarchy.toData());
         outputs.put(SnapshotFormat.ALIASES_FILE, GlobalAliasesReader.read(skriptClassLoader));
+        outputs.put(SnapshotFormat.LANGUAGE_FILE, LanguageReader.read(skriptClassLoader));
         Plugin skriptPlugin = Bukkit.getPluginManager().getPlugin("Skript");
         if (skriptPlugin == null) throw new IllegalStateException("Skript is not installed");
         outputs.put(

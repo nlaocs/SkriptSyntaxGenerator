@@ -124,6 +124,7 @@ data class IntegrationProfile(
         get() {
             val files = mutableSetOf(
                 "Aliases.json",
+                "Language.json",
                 "Conditions.json",
                 "Effects.json",
                 "Events.json",
