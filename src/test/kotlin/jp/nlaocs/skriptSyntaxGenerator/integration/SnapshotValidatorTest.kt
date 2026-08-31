@@ -28,7 +28,7 @@ class SnapshotValidatorTest {
 
         val report = SnapshotValidator.validate(tempDirectory)
 
-        assertEquals(19, report.files)
+        assertEquals(20, report.files)
         assertEquals(0, report.aliases)
         assertEquals(0, report.registrations)
     }
@@ -78,6 +78,89 @@ class SnapshotValidatorTest {
         }
 
         assertTrue(error.message.orEmpty().contains("missing assignableTo type missing"))
+    }
+
+    @Test
+    fun `rejects a class record without required methods`() {
+        writeSnapshot(
+            mapOf(
+                "ClassHierarchy.json" to """[
+                    {
+                      "name":"example.Type",
+                      "binaryName":"example.Type",
+                      "kind":"Class",
+                      "interfaces":[]
+                    }
+                ]""".trimIndent()
+            )
+        )
+
+        val error = assertThrows<AssertionError> {
+            SnapshotValidator.validate(tempDirectory)
+        }
+
+        assertTrue(error.message.orEmpty().contains("ClassHierarchy[0].methods must be an array"))
+    }
+
+    @Test
+    fun `accepts declared method signature records`() {
+        writeSnapshot(
+            mapOf(
+                "ClassHierarchy.json" to """[
+                    {
+                      "name":"example.Type",
+                      "binaryName":"example.Type",
+                      "kind":"Class",
+                      "interfaces":[],
+                      "methods":[
+                        {"name":"alpha","parameterTypes":[],"returnType":"void","static":false},
+                        {"name":"beta","parameterTypes":["java.lang.String"],"returnType":"int","static":true}
+                      ]
+                    }
+                ]""".trimIndent()
+            )
+        )
+
+        val report = SnapshotValidator.validate(tempDirectory)
+
+        assertEquals(1, report.classes)
+    }
+
+    @Test
+    fun `rejects non-string language values`() {
+        writeSnapshot(mapOf("Language.json" to """{"boolean.true":true}"""))
+
+        val error = assertThrows<AssertionError> {
+            SnapshotValidator.validate(tempDirectory)
+        }
+
+        assertTrue(error.message.orEmpty().contains("Language.json[boolean.true] must be a string"))
+    }
+
+    @Test
+    fun `rejects malformed event capability fields`() {
+        writeSnapshot(
+            mapOf(
+                "Events.json" to """[
+                    {
+                      "registrationOrder":0,
+                      "registrationId":"event:test",
+                      "referenceEvents":[],
+                      "eventValues":[],
+                      "cancellable":false,
+                      "prioritySupported":"yes",
+                      "hasOnPrefix":false,
+                      "addon":{"name":"Skript","version":"2.14.3"}
+                    }
+                ]""".trimIndent()
+            )
+        )
+
+        val error = assertThrows<AssertionError> {
+            SnapshotValidator.validate(tempDirectory)
+        }
+
+        assertTrue(error.message.orEmpty().contains("prioritySupported must be boolean"))
     }
 
     @Test
@@ -158,6 +241,7 @@ class SnapshotValidatorTest {
                 SnapshotFormat.ALIASES_FILE -> "{\"aliases\":{},\"targets\":[]}"
                 SnapshotFormat.PLURAL_RULES_FILE ->
                     """{"algorithm":"singular-aware","pluralOverrideSupported":true,"rules":[{"ruleOrder":0,"singular":"","plural":"s","completeWord":false,"origin":"built-in","addon":{"name":"Skript","version":"2.14.3"}}]}"""
+                SnapshotFormat.LANGUAGE_FILE -> "{}"
                 else -> "[]"
             }
         }.toMutableMap()
