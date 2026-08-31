@@ -2,13 +2,13 @@
 
 English | [日本語](README_JA.md)
 
-Generates a server-specific Skript syntax snapshot for LSP and tooling use. The snapshot records the active Skript version, server, plugins, registration order, capabilities, and 18 data files behind a stable schema.
+Generates a server-specific Skript syntax snapshot for LSP and tooling use. The snapshot records the active Skript version, server, plugins, registration order, capabilities, and 19 data files behind a stable schema.
 
 For a field-by-field description of every generated file, including nullability, value ranges, concepts, and version differences, see the [snapshot JSON format reference](docs/json-format.md).
 
 ## Generator artifacts
 
-Two adapters write the same 19-file snapshot contract:
+Two adapters write the same 20-file snapshot contract:
 
 | Skript | Artifact | Runtime |
 | --- | --- | --- |
@@ -17,11 +17,11 @@ Two adapters write the same 19-file snapshot contract:
 
 Place the matching artifact in the server's `plugins` directory, start the server, and run `/skgen`. Files are written to `plugins/SkriptSyntaxGenerator` by default. A server snapshot should be generated again whenever the server, Skript, installed addons, or addon load order changes.
 
-Both adapters always emit the same files. Features unavailable in an older Skript version use the contract's empty root (`[]`, `{}` for `Operations.json`, or the documented object roots for `Aliases.json` and `PluralRules.json`) and are described by `Manifest.json.capabilities`.
+Both adapters always emit the same files. Features unavailable in an older Skript version use the contract's empty root (`[]`, `{}` for `Operations.json`, or the documented object roots for `Aliases.json`, `Language.json`, and `PluralRules.json`) and are described by `Manifest.json.capabilities`.
 
 ## Manifest capabilities
 
-`Manifest.json` uses schema version 4 and records:
+`Manifest.json` uses schema version 5 and records:
 
 - `syntaxApi`: `legacy-static` or `registry`
 - `eventValueApi`: `legacy`, `modern-2.15`, or `modern-2.16`
@@ -29,6 +29,8 @@ Both adapters always emit the same files. Features unavailable in an older Skrip
 - `aliases.supported` and `aliases.collected`
 
 `Aliases.json` snapshots aliases registered globally by Skript and addons. Per-script aliases declared through an `aliases:` section are stored in script-local child providers and are outside the generator's data model, so user script contents never become part of the snapshot.
+
+`Language.json` contains the effective key/value map loaded by Skript's global `Language` registry. It is collected from Skript's runtime maps, includes Skript and addon language entries, and never reads user `.sk` files or script-local providers. Generation fails if the runtime registry cannot be inspected, so an empty object always means the loaded registry itself was empty.
 
 `PluralRules.json` stores the exact runtime English singular/plural table, its algorithm, evaluation order, complete-word behavior, and the addon responsible for each runtime override. This lets an LSP reproduce Skript parsing without shipping a hardcoded copy of the rules.
 
@@ -56,19 +58,19 @@ Core syntax data:
 
 Supporting registries and relationships:
 
-| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Plural rules |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Language registry | Plural rules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 `Arithmetic` covers `Operators.json`, `Operations.json`, and `Differences.json` as one capability. `Plural rules` covers `PluralRules.json`; every supported Skript version has a built-in conversion table, while `pluralOverrideSupported` records whether addons can prepend runtime overrides. Event values are available for every tested version, but their metadata shape changes: 2.6.4-2.14.3 use `eventValueApi: legacy`, while 2.15.4 and 2.16.0 expose the `modern-2.16` shape. The exact detected shape must be read from the Manifest instead of inferred only from the Skript version.
 

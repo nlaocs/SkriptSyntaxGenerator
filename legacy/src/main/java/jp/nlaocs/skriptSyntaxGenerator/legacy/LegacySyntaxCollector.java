@@ -1,6 +1,7 @@
 package jp.nlaocs.skriptSyntaxGenerator.legacy;
 
 import org.bukkit.event.Cancellable;
+import org.bukkit.event.block.BlockCanBuildEvent;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,19 +72,32 @@ final class LegacySyntaxCollector {
             }
             data.put("eventValues", availableValues);
 
-            boolean cancellable = !referenceEvents.isEmpty();
+            boolean cancellable = false;
             for (Class<?> referenceEvent : referenceEvents) {
-                if (!Cancellable.class.isAssignableFrom(referenceEvent)) {
-                    cancellable = false;
+                if (Cancellable.class.isAssignableFrom(referenceEvent)
+                    || BlockCanBuildEvent.class.isAssignableFrom(referenceEvent)) {
+                    cancellable = true;
                     break;
                 }
             }
             data.put("cancellable", cancellable);
+            Boolean prioritySupported = eventPrioritySupported(elementClass);
+            if (prioritySupported != null) data.put("prioritySupported", prioritySupported);
             Object name = data.get("name");
             data.put("hasOnPrefix", name != null && String.valueOf(name).startsWith("On "));
             result.add(data);
         }
         return result;
+    }
+
+    private Boolean eventPrioritySupported(Class<?> elementClass) {
+        try {
+            Object event = elementClass.getDeclaredConstructor().newInstance();
+            Object supported = LegacyReflection.invokeOrNull(event, "isEventPrioritySupported");
+            return supported instanceof Boolean ? (Boolean) supported : null;
+        } catch (ReflectiveOperationException | LinkageError ignored) {
+            return null;
+        }
     }
 
     List<LegacyEventValueRecord> collectEventValues() {

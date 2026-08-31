@@ -10,16 +10,17 @@ import java.util.Map;
 import java.util.Set;
 
 public final class SnapshotFormat {
-    public static final int SCHEMA_VERSION = 4;
+    public static final int SCHEMA_VERSION = 5;
     public static final String MANIFEST_FILE = "Manifest.json";
     public static final String ALIASES_FILE = "Aliases.json";
+    public static final String LANGUAGE_FILE = "Language.json";
     public static final String OPERATIONS_FILE = "Operations.json";
     public static final String PLURAL_RULES_FILE = "PluralRules.json";
 
     private static final List<String> DATA_FILES = Collections.unmodifiableList(Arrays.asList(
         ALIASES_FILE, "ClassHierarchy.json", "Comparators.json", "Conditions.json", "Converters.json",
         "Differences.json", "Effects.json", "EventValues.json", "Events.json",
-        "Expressions.json", "Functions.json", OPERATIONS_FILE, "Operators.json",
+        "Expressions.json", "Functions.json", LANGUAGE_FILE, OPERATIONS_FILE, "Operators.json",
         PLURAL_RULES_FILE, "Properties.json", "Sections.json", "Structures.json", "Types.json"
     ));
     private static final List<String> ALL_FILES;
@@ -65,6 +66,9 @@ public final class SnapshotFormat {
             aliases.put("aliases", Collections.emptyMap());
             aliases.put("targets", Collections.emptyList());
             return aliases;
+        }
+        if (LANGUAGE_FILE.equals(fileName)) {
+            return Collections.emptyMap();
         }
         return OPERATIONS_FILE.equals(fileName) ? Collections.emptyMap() : Collections.emptyList();
     }

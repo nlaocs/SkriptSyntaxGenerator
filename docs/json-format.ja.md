@@ -2,7 +2,7 @@
 
 [English](json-format.md) | 日本語
 
-この文書は、`/skgen` が出力するschema version `4`の19ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
+この文書は、`/skgen` が出力するschema version `5`の20ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
 
 ## 形式の読み方
 
@@ -58,9 +58,10 @@ generatorはJacksonの`NON_NULL`設定でDTOを直列化します。後述する
 | `Differences.json` | array | 2値間の距離・差を求める規則。 |
 | `ClassHierarchy.json` | array | snapshotで使われるJava classの継承関係。 |
 | `Aliases.json` | object | global登録されたitem/block名と解決結果。 |
+| `Language.json` | object | Skriptのglobal language registryにロードされた実効key/value。 |
 | `PluralRules.json` | object | runtime優先順に並んだ英語の単数形・複数形変換rule。 |
 
-全ファイルが常に出力されます。空rootは、配列ファイルが`[]`、`Operations.json`が`{}`、`Aliases.json`が`{"aliases":{},"targets":[]}`、`PluralRules.json`が`{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}`です。
+全ファイルが常に出力されます。空rootは、配列ファイルが`[]`、`Operations.json`と`Language.json`が`{}`、`Aliases.json`が`{"aliases":{},"targets":[]}`、`PluralRules.json`が`{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}`です。
 
 ## 共通object
 
@@ -169,7 +170,8 @@ rootは`kind: "effect"`の`array<CommonSyntaxRecord>`です。effectは処理を
 | --- | --- | --- | --- |
 | `referenceEvents` | `array<class-name>` | 必須 | このSkript eventを発火させるBukkit event class。 |
 | `eventValues` | `array<EventValueRecord>` | 必須 | 継承・除外判定後にこのeventで使えるevent value。`[]`は明確に0件。 |
-| `cancellable` | boolean | 必須 | `referenceEvents`が空でなく、すべてBukkit `Cancellable`なら`true`。 |
+| `cancellable` | boolean | 必須 | 参照Bukkit eventの少なくとも1つが`Cancellable`を実装するか、`BlockCanBuildEvent`なら`true`。Skript本家のevent documentation判定と同じ。 |
+| `prioritySupported` | boolean | 省略可 | 登録Skript event instanceの`isEventPrioritySupported()`結果。runtimeでinstanceを生成・検査できない場合は省略。 |
 | `hasOnPrefix` | boolean | 必須 | 登録表示名が`On `で始まるか。event documentation名の正規化に利用できる。 |
 
 inlineのevent valueは`EventValues.json`と同じ形です。
@@ -360,6 +362,8 @@ event valueは、対応するBukkit event処理中だけ使える型付き値で
 | `patterns` | `array<string>` | modern APIのみ | event valueの追加text pattern・qualifier。`[]`は追加指定なし。 |
 | `acceptedChangers` | ChangeMode map | modern APIのみ | event valueの変更方法。`{}`はread-only。 |
 | `contextDependent` | boolean | modern APIのみ | event/value class以外のcontextにも利用可否が依存するか。 |
+| `hasCustomInputValidator` | boolean | modern APIのみ | 出力済みpattern以外に、識別子へaddon独自の検証も実行するか。実行できないreaderは結果をunresolvedとして扱う。 |
+| `hasCustomEventValidator` | boolean | modern APIのみ | 現在のevent classへaddon独自の検証も実行するか。実行できないreaderは結果をunresolvedとして扱う。 |
 | `addon` | `AddonInfo` | 必須 | 登録元plugin。特定不能なら`unknown`。 |
 | `registrationId` | string | 必須 | 不透明な決定的登録ID。 |
 
@@ -431,7 +435,7 @@ rootは`object<string, array<OperationData>>`で、keyはoperator signです。�
 
 ### `ClassHierarchy.json`
 
-他ファイルから参照された全classについて、superclass、interface、array componentまで辿ったJava型graphです。LSP processがserver classをloadしなくてもassignabilityを判断できます。
+他のcatalog fileから参照された全classについて、superclass、interface、array componentまで辿ったJava型graphです。LSP processがserver classをloadしなくてもassignabilityを判断できます。methodのparameter/return名はexactなreflection metadataであり、このgraph外のclassを指す場合があります。JDK・pluginの全method signatureを再帰展開するとgraphが無制限に広がり、exactな`methodExists`判定には不要なためです。
 
 | フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
@@ -441,7 +445,22 @@ rootは`object<string, array<OperationData>>`で、keyはoperator signです。�
 | `superClass` | class-name | 省略可 | 直接superclass。Javaがnoneを返すroot/interfaceでは省略。 |
 | `interfaces` | `array<class-name>` | 必須 | sort済みの直接interface。`[]`も有効。 |
 | `componentType` | class-name | arrayのみ | 配列要素class。 |
+| `methods` | `array<ClassMethodData>` | 必須 | このclassに直接declareされた`Class.getDeclaredMethods()`相当のmethod。visibilityで絞らず、synthetic/bridge methodも保持し、完全signatureで重複排除・sortする。reflection不能時は不完全なschema 5 recordを出さず、生成を失敗させる。 |
+| `containerElementType` | class-name | 省略可 | Skriptのruntime `@ContainerType` annotationで宣言された要素class。単一の`Container`値をloop内で複数要素として扱う際に使用する。 |
 | `provider` | `AddonInfo` | 省略可 | classloader/code sourceを所有するplugin。JDK/coreや未解決classでは省略可。 |
+
+`ClassHierarchy.json`の各recordには`methods`を必須で含めます。これはそのclassに直接declareされた`Class.getDeclaredMethods()`相当の全methodです。visibilityで絞り込まず、inherited methodはそのclass recordへ追加しません。synthetic/bridge methodも保持します。
+
+`ClassMethodData`:
+
+| field | 型 | 有無 | 意味 |
+| --- | --- | --- | --- |
+| `name` | string | 必須 | Java method名。 |
+| `parameterTypes` | `array<class-name>` | 必須 | `Method.getParameterTypes()`のexactなraw parameter class名を宣言順で保存します。引数なしは`[]`です。 |
+| `returnType` | class-name | 必須 | `Method.getReturnType()`のexactなraw return class名。 |
+| `static` | boolean | 必須 | `Modifier.isStatic(method.getModifiers())`の結果。Skriptの`methodExists`相当判定ではvisibilityとstatic flagは条件にせず、name、順序付きparameterTypes、必要ならreturnTypeをexact matchします。 |
+
+signature identityは`name + exact parameterTypes + returnType + static`です。同じclass record内でこの4項目が同じentryだけを1件に正規化し、canonical signature順にsortします。LSP/WASMが`Skript.methodExists`相当を再現する場合は、対象classのrecordだけを参照し、superclassやinterfaceを探索しません。
 
 ### `Aliases.json`
 
@@ -504,19 +523,34 @@ current adapterはSkriptのload前に`Utils.addPluralOverride`をinstrumentation
 
 Skript source: [2.6.4のlegacy `Utils.java`](https://github.com/SkriptLang/Skript/blob/2.6.4/src/main/java/ch/njol/skript/util/Utils.java)、[2.14.3のsingular-aware `Utils.java`](https://github.com/SkriptLang/Skript/blob/2.14.3/src/main/java/ch/njol/skript/util/Utils.java)。Generator側path: `snapshot-contract/src/main/java/jp/nlaocs/skriptSyntaxGenerator/generator/PluralRulesReader.java`、`src/main/java/jp/nlaocs/skriptSyntaxGenerator/hook/RegisterPluralOverrideHook.java`。
 
+### `Language.json`
+
+rootはobjectです。各property名がロード済みlanguage key、property valueがSkriptのlanguage lookupから返される実効文字列です。決定的な出力にするためkey順にsortされます。
+
+schema 5では、legacy/currentの両adapterを通じて、対応するSkript 2.6.4から2.16.0までの全profileで`Language.json`を出力します。schema 3/4はこのregistryの追加前であるため、旧snapshotでfileが存在しない場合は「runtime registryが空」ではなく「データ未提供」を意味します。
+
+| フィールド | 型 | 有無 | 意味 |
+| --- | --- | --- | --- |
+| `<language-key>` | string | entry依存 | parser messageやlocalized noun keyなど、runtimeに存在するlanguage key。 |
+| `<language-value>` | string | entry依存 | そのkeyにロードされた文字列。空文字列も「未定義」と異なるため保持されます。 |
+
+readerは`localizedLanguage`を先に入れ、`defaultLanguage`を後から入れます。これはcollision時にdefault mapを優先するSkriptの`Language.get_i`と同じです。コピー対象はglobal runtime mapだけで、script fileやscript-local providerは調べません。歴史的な`Language` class、private field、またはstring map shapeを読み取れない場合は、曖昧な空・部分dataを出さずsnapshot生成を失敗させます。
+
+Skript source: [2.6.4の`Language.java`](https://github.com/SkriptLang/Skript/blob/2.6.4/src/main/java/ch/njol/skript/localization/Language.java)、[2.16.0の`Language.java`](https://github.com/SkriptLang/Skript/blob/2.16.0/src/main/java/ch/njol/skript/localization/Language.java)。Generator側path: `snapshot-contract/src/main/java/jp/nlaocs/skriptSyntaxGenerator/generator/LanguageReader.java`。
+
 ## `Manifest.json`
 
 | フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | 必須 | この文書ではexact `4`。未知のmajor schemaは拒否または別処理する。 |
+| `schemaVersion` | int | 必須 | この文書ではexact `5`。未知のmajor schemaは拒否または別処理する。 |
 | `snapshotId` | sha256 | 必須 | schema、content、server、language、plugin list、capability、file list由来のidentity。 |
-| `contentDigest` | sha256 | 必須 | Manifestを除く18 data fileのserialized content digest。 |
+| `contentDigest` | sha256 | 必須 | Manifestを除く19 data fileのserialized content digest。 |
 | `generatedAt` | ISO-8601 string | 必須 | UTC `Instant`。`snapshotId`には含まれない。 |
 | `server` | `ServerManifestData` | 必須 | 実行server identity。 |
 | `language` | string | 必須 | active Skript language。legacyで取得不能なら`unknown`。type nounにも影響する。 |
 | `plugins` | `array<PluginManifestData>` | 必須 | Bukkit load orderのplugin一覧。 |
 | `capabilities` | `SnapshotCapabilitiesData` | 必須 | API shapeと対応registry。 |
-| `files` | `array<string>` | 必須 | `Manifest.json`を含む19ファイル名のsort済み一覧。 |
+| `files` | `array<string>` | 必須 | `Manifest.json`を含む20ファイル名のsort済み一覧。 |
 
 `ServerManifestData`は必須stringの`name`、`version`、`bukkitVersion`、`minecraftVersion`、`javaVersion`を持ちます。
 
@@ -554,6 +588,7 @@ Skript source: [2.6.4のlegacy `Utils.java`](https://github.com/SkriptLang/Skrip
 | Expression multiplicity/changerと実装metadata | legacy adapterはmultiplicity/changerをunresolvedとし、current実装metadataを省略。current adapterはbytecode/instance解析が安全な場合に解決。 |
 | EventValues | 2.14.xまではlegacy shape、2.15.xからmodern field。必ず`eventValueApi`を使う。 |
 | Global aliases | 全検証versionで収集。script-local aliasは常に除外。 |
+| Language registry | 全検証versionでprivate runtime mapから実効key/valueを収集。reflectionできない場合は曖昧な空registryを出力せず、生成を失敗させる。 |
 
 ### 2.7より前のStructure
 
@@ -587,4 +622,5 @@ Property registryの境界は[Skript 2.13.0の`Property.java`](https://github.co
 6. `Aliases.json.aliases[text]`を`targets[index]`へ解決し、index範囲を検証する。
 7. LSP processにserver classがあると仮定せず、assignabilityには`ClassHierarchy.json`と`Types.json.assignableTo`を使う。
 8. 一般的な英語inflectorで代用せず、`PluralRules.json.rules`を`ruleOrder`順に、`algorithm`の動作で適用する。
-9. server、Skript、addon、addon version、language、plugin load orderが変わったらsnapshotを再生成する。
+9. runtime-localized key/valueには`Language.json`を使い、別のhardcode済みlanguage tableを同梱しない。
+10. server、Skript、addon、addon version、language、plugin load orderが変わったらsnapshotを再生成する。

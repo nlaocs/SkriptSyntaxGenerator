@@ -10,6 +10,7 @@ import jp.nlaocs.skriptSyntaxGenerator.util.StableIds
 import jp.nlaocs.skriptSyntaxGenerator.util.stableName
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
+import org.bukkit.event.block.BlockCanBuildEvent
 import org.skriptlang.skript.bukkit.registration.BukkitSyntaxInfos
 
 class EventData(
@@ -23,10 +24,18 @@ class EventData(
     val eventValues: List<EventValueData> = allEventValues
         .filter { it.isAvailableFor(referenceEvents) }
         .distinctBy { it.registrationId }
-    val cancellable: Boolean = referenceEvents
-        .all { Cancellable::class.java.isAssignableFrom(it) }
+    val cancellable: Boolean = supportsListeningBehavior(referenceEvents)
+    val prioritySupported: Boolean? = runCatching {
+        s.instance().isEventPrioritySupported
+    }.getOrNull()
     val hasOnPrefix: Boolean = s.name().startsWith("On ")
 }
+
+internal fun supportsListeningBehavior(referenceEvents: List<Class<out Event>>): Boolean =
+    referenceEvents.any {
+        Cancellable::class.java.isAssignableFrom(it) ||
+            BlockCanBuildEvent::class.java.isAssignableFrom(it)
+    }
 
 data class EventValueData(
     val eventClass: Class<out Event>,
@@ -40,6 +49,8 @@ data class EventValueData(
     val patterns: List<String>? = null,
     val acceptedChangers: Map<ChangeMode, List<Class<*>>>? = null,
     val contextDependent: Boolean? = null,
+    val hasCustomInputValidator: Boolean? = null,
+    val hasCustomEventValidator: Boolean? = null,
 ) : Addon {
     val registrationId: String = StableIds.record(
         "event-value",
@@ -49,6 +60,13 @@ data class EventValueData(
             add(valueClass.stableName())
             add(time.toString())
             if (!patterns.isNullOrEmpty()) addAll(patterns)
+            if (!excludes.isNullOrEmpty()) addAll(excludes.map { it.stableName() }.sorted())
+            excludeErrorMessage?.let(::add)
+            contextDependent?.let { add("contextDependent=$it") }
+            hasCustomInputValidator?.let { add("customInputValidator=$it") }
+            hasCustomEventValidator?.let { add("customEventValidator=$it") }
+            add("resolutionOrder=$resolutionOrder")
+            registrationOrder?.let { add("registrationOrder=$it") }
         }.toTypedArray()
     )
 
@@ -63,7 +81,9 @@ data class EventValueData(
         addon = record.addon,
         patterns = record.patterns,
         acceptedChangers = record.acceptedChangers,
-        contextDependent = record.contextDependent
+        contextDependent = record.contextDependent,
+        hasCustomInputValidator = record.hasCustomInputValidator,
+        hasCustomEventValidator = record.hasCustomEventValidator
     )
 
     fun isAvailableFor(referenceEvents: List<Class<out Event>>): Boolean =

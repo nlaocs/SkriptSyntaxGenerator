@@ -84,7 +84,7 @@ object SnapshotValidator {
 
         failIfAny(errors)
 
-        (requiredFiles - setOf("Manifest.json", "Operations.json", "Aliases.json", "PluralRules.json")).forEach { fileName ->
+        (requiredFiles - setOf("Manifest.json", "Operations.json", "Aliases.json", "Language.json", "PluralRules.json")).forEach { fileName ->
             expect(documents.getValue(fileName).isArray, errors) { "$fileName root must be an array" }
         }
         expect(documents.getValue("Operations.json").isObject, errors) {
@@ -95,6 +95,9 @@ object SnapshotValidator {
         }
         expect(documents.getValue("PluralRules.json").isObject, errors) {
             "PluralRules.json root must be an object"
+        }
+        expect(documents.getValue("Language.json").isObject, errors) {
+            "Language.json root must be an object"
         }
         expect(documents.getValue("Manifest.json").isObject, errors) {
             "Manifest.json root must be an object"
@@ -163,8 +166,10 @@ object SnapshotValidator {
         }
         validatePluralRules(documents.getValue("PluralRules.json"), errors)
         validateAliases(documents.getValue("Aliases.json"), errors)
+        validateLanguage(documents.getValue("Language.json"), errors)
         validateTypeReferences(documents, errors)
         validateEventValueReferences(documents, errors)
+        validateEvents(documents.getValue("Events.json"), errors)
         validateEventValueMetadata(
             documents.getValue("EventValues.json"),
             expectedEventValueMetadata,
@@ -656,8 +661,151 @@ object SnapshotValidator {
     }
     private fun validateClassHierarchy(classes: JsonNode, errors: MutableList<String>) {
         val names = classes.mapNotNull { it["name"]?.asText() }
+        expect(names.size == classes.size(), errors) { "ClassHierarchy contains a record without a name" }
         expect(names == names.sorted(), errors) { "ClassHierarchy names are not sorted" }
         expect(names.size == names.toSet().size, errors) { "ClassHierarchy contains duplicate names" }
+        classes.forEachIndexed { index, value ->
+            expect(value["name"]?.isTextual == true && value["name"].asText().isNotBlank(), errors) {
+                "ClassHierarchy[$index].name must be a non-empty string"
+            }
+            expect(value["binaryName"]?.isTextual == true && value["binaryName"].asText().isNotBlank(), errors) {
+                "ClassHierarchy[$index].binaryName must be a non-empty string"
+            }
+            expect(value["kind"]?.asText() in classKinds, errors) {
+                "ClassHierarchy[$index].kind is missing or unsupported"
+            }
+            validateOptionalClassReference(value, "superClass", index, names, errors)
+            validateOptionalClassReference(value, "componentType", index, names, errors)
+            val interfaces = value["interfaces"]
+            expect(interfaces?.isArray == true, errors) {
+                "ClassHierarchy[$index].interfaces must be an array"
+            }
+            interfaces?.takeIf(JsonNode::isArray)?.forEachIndexed { interfaceIndex, interfaceType ->
+                expect(interfaceType.isTextual && interfaceType.asText() in names, errors) {
+                    "ClassHierarchy[$index].interfaces[$interfaceIndex] references an unknown class"
+                }
+            }
+            val methods = value["methods"]
+            expect(methods?.isArray == true, errors) {
+                "ClassHierarchy[$index].methods must be an array"
+            }
+            if (methods?.isArray == true) {
+                validateClassMethods(index, methods, errors)
+            }
+            val elementType = value["containerElementType"] ?: return@forEachIndexed
+            expect(elementType.isTextual && elementType.asText() in names, errors) {
+                "ClassHierarchy[$index].containerElementType references an unknown class"
+            }
+        }
+    }
+
+    private fun validateOptionalClassReference(
+        value: JsonNode,
+        field: String,
+        classIndex: Int,
+        names: List<String>,
+        errors: MutableList<String>
+    ) {
+        val reference = value[field] ?: return
+        expect(reference.isTextual && reference.asText() in names, errors) {
+            "ClassHierarchy[$classIndex].$field references an unknown class"
+        }
+    }
+
+    private fun validateLanguage(language: JsonNode, errors: MutableList<String>) {
+        language.fields().forEachRemaining { (key, value) ->
+            expect(key.isNotBlank(), errors) { "Language.json contains a blank key" }
+            expect(value.isTextual, errors) { "Language.json[$key] must be a string" }
+        }
+    }
+
+    private fun validateEvents(events: JsonNode, errors: MutableList<String>) {
+        events.forEachIndexed { index, event ->
+            val referenceEvents = event["referenceEvents"]
+            expect(referenceEvents?.isArray == true, errors) {
+                "Events.json[$index].referenceEvents must be an array"
+            }
+            referenceEvents?.takeIf(JsonNode::isArray)?.forEachIndexed { referenceIndex, reference ->
+                expect(reference.isTextual && reference.asText().isNotBlank(), errors) {
+                    "Events.json[$index].referenceEvents[$referenceIndex] must be a non-empty string"
+                }
+            }
+            expect(event["eventValues"]?.isArray == true, errors) {
+                "Events.json[$index].eventValues must be an array"
+            }
+            expect(event["cancellable"]?.isBoolean == true, errors) {
+                "Events.json[$index].cancellable must be boolean"
+            }
+            expect(event["prioritySupported"] == null || event["prioritySupported"].isBoolean, errors) {
+                "Events.json[$index].prioritySupported must be boolean when present"
+            }
+            expect(event["hasOnPrefix"]?.isBoolean == true, errors) {
+                "Events.json[$index].hasOnPrefix must be boolean"
+            }
+        }
+    }
+
+    private fun validateClassMethods(classIndex: Int, methods: JsonNode, errors: MutableList<String>) {
+        val signatures = mutableSetOf<String>()
+        val orderedSignatures = mutableListOf<String>()
+        methods.forEachIndexed { methodIndex, method ->
+            val name = method["name"]?.takeIf(JsonNode::isTextual)?.asText()
+                ?.takeIf(String::isNotBlank)
+            expect(name != null, errors) {
+                "ClassHierarchy[$classIndex].methods[$methodIndex].name must be a non-empty string"
+            }
+
+            val parameterTypes = method["parameterTypes"]
+            expect(parameterTypes?.isArray == true, errors) {
+                "ClassHierarchy[$classIndex].methods[$methodIndex].parameterTypes must be an array"
+            }
+            val parameters = parameterTypes?.takeIf(JsonNode::isArray)?.toList().orEmpty()
+            parameters.forEachIndexed { parameterIndex, parameterType ->
+                expect(parameterType.isTextual && parameterType.asText().isNotBlank(), errors) {
+                    "ClassHierarchy[$classIndex].methods[$methodIndex].parameterTypes[$parameterIndex] must be a non-empty string"
+                }
+            }
+            val parameterNames = parameters.mapNotNull {
+                it.takeIf(JsonNode::isTextual)?.asText()?.takeIf(String::isNotBlank)
+            }
+            val returnType = method["returnType"]?.takeIf(JsonNode::isTextual)?.asText()
+                ?.takeIf(String::isNotBlank)
+            expect(returnType != null, errors) {
+                "ClassHierarchy[$classIndex].methods[$methodIndex].returnType must be a non-empty string"
+            }
+            val staticFlag = method["static"]
+            expect(staticFlag?.isBoolean == true, errors) {
+                "ClassHierarchy[$classIndex].methods[$methodIndex].static must be boolean"
+            }
+
+            if (
+                name != null &&
+                parameterTypes?.isArray == true &&
+                parameterNames.size == parameters.size &&
+                returnType != null &&
+                staticFlag?.isBoolean == true
+            ) {
+                val signature = classMethodSignatureKey(name, parameterNames, returnType, staticFlag.asBoolean())
+                orderedSignatures += signature
+                expect(signatures.add(signature), errors) {
+                    "ClassHierarchy[$classIndex].methods contains duplicate signature"
+                }
+            }
+        }
+        expect(orderedSignatures == orderedSignatures.sorted(), errors) {
+            "ClassHierarchy[$classIndex].methods are not sorted"
+        }
+    }
+
+    private fun classMethodSignatureKey(
+        name: String,
+        parameterTypes: List<String>,
+        returnType: String,
+        static: Boolean
+    ): String = buildString {
+        append(name).append('\u0000')
+        parameterTypes.forEach { append(it).append('\u0000') }
+        append(returnType).append('\u0000').append(if (static) '1' else '0')
     }
 
     private fun flattenObjectArrays(root: JsonNode): List<JsonNode> =
@@ -682,6 +830,11 @@ object SnapshotValidator {
     private inline fun expect(condition: Boolean, errors: MutableList<String>, message: () -> String) {
         if (!condition) errors += message()
     }
+
+    private val classKinds = setOf(
+        "Annotation", "Enum", "Interface", "Array", "Primitive", "Record", "Sealed",
+        "Synthetic", "MemberClass", "LocalClass", "AnonymousClass", "Class"
+    )
 
     private fun failIfAny(errors: List<String>) {
         if (errors.isNotEmpty()) throw AssertionError(errors.joinToString("\n"))

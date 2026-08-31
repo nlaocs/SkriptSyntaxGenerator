@@ -21,6 +21,8 @@ data class EventValueRecord(
     val patterns: List<String>?,
     val acceptedChangers: Map<ChangeMode, List<Class<*>>>?,
     val contextDependent: Boolean?,
+    val hasCustomInputValidator: Boolean?,
+    val hasCustomEventValidator: Boolean?,
     val registrationOrder: Int?,
     val addon: AddonInfo
 )
@@ -76,6 +78,8 @@ private object LegacyEventValueAdapter : EventValueAdapter {
             patterns = null,
             acceptedChangers = null,
             contextDependent = null,
+            hasCustomInputValidator = null,
+            hasCustomEventValidator = null,
             registrationOrder = snapshot?.registrationOrder(),
             addon = addon
         )
@@ -146,6 +150,9 @@ private object ModernEventValueAdapter : EventValueAdapter {
                         }
                     },
                 contextDependent = contextDependent?.invoke(eventValue) as Boolean?,
+                hasCustomInputValidator = booleanField(eventValue, "hasCustomInputValidator"),
+                hasCustomEventValidator = objectField(eventValue, "eventValidator")?.let { true }
+                    ?: fieldExists(eventValue, "eventValidator")?.let { false },
                 registrationOrder = snapshot?.registrationOrder(),
                 addon = addon
             )
@@ -153,6 +160,18 @@ private object ModernEventValueAdapter : EventValueAdapter {
 
         private fun timeValue(value: Any): Int =
             value.javaClass.getMethod("value").invoke(value) as Int
+
+        private fun booleanField(instance: Any, name: String): Boolean? =
+            objectField(instance, name) as? Boolean
+
+        private fun objectField(instance: Any, name: String): Any? = runCatching {
+            instance.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(instance)
+        }.getOrNull()
+
+        private fun fieldExists(instance: Any, name: String): Boolean? = runCatching {
+            instance.javaClass.getDeclaredField(name)
+            true
+        }.getOrNull()
     }
 }
 

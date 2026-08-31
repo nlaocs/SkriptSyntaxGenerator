@@ -63,6 +63,7 @@ class ModernSnapshotDataSource : SnapshotDataSource {
         }
         outputs["ClassHierarchy.json"] = ClassHierarchyCollector().collect(outputs.values)
         outputs[SnapshotFormat.ALIASES_FILE] = GlobalAliasesReader.read(javaClass.classLoader)
+        outputs[SnapshotFormat.LANGUAGE_FILE] = LanguageReader.read(Skript::class.java.classLoader)
         return outputs
     }
 }

@@ -15,8 +15,11 @@ repositories {
 
 dependencies {
     implementation(project(":snapshot-contract"))
+    implementation("org.ow2.asm:asm:9.7.1")
     compileOnly("org.spigotmc:spigot-api:1.12.2-R0.1-SNAPSHOT")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
+    testImplementation("org.spigotmc:spigot-api:1.12.2-R0.1-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
 }
 
 java {
@@ -37,9 +40,14 @@ tasks.processResources {
 tasks.shadowJar {
     archiveBaseName.set("SkriptSyntaxGenerator-legacy")
     archiveClassifier.set("")
+    relocate("org.objectweb.asm", "jp.nlaocs.skriptSyntaxGenerator.legacy.libs.asm")
     relocate("com.fasterxml.jackson", "jp.nlaocs.skriptSyntaxGenerator.legacy.libs.jackson")
 }
 
 tasks.build {
     dependsOn(tasks.shadowJar)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

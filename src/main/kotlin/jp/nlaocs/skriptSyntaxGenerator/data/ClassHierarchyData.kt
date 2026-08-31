@@ -9,5 +9,7 @@ data class ClassHierarchyData(
     val superClass: String?,
     val interfaces: List<String>,
     val componentType: String?,
+    val methods: List<ClassMethodData>,
+    val containerElementType: String?,
     val provider: AddonInfo?
 )

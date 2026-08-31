@@ -32,7 +32,9 @@ class EventValueCompatibilityTest {
                 eventValue(
                     patterns = emptyList(),
                     acceptedChangers = emptyMap(),
-                    contextDependent = false
+                    contextDependent = false,
+                    hasCustomInputValidator = true,
+                    hasCustomEventValidator = false
                 )
             )
         )
@@ -40,17 +42,23 @@ class EventValueCompatibilityTest {
         assertFalse(legacy.has("patterns"))
         assertFalse(legacy.has("acceptedChangers"))
         assertFalse(legacy.has("contextDependent"))
+        assertFalse(legacy.has("hasCustomInputValidator"))
+        assertFalse(legacy.has("hasCustomEventValidator"))
         assertTrue(modern["patterns"].isArray)
         assertTrue(modern["patterns"].isEmpty)
         assertTrue(modern["acceptedChangers"].isObject)
         assertTrue(modern["acceptedChangers"].isEmpty)
         assertFalse(modern["contextDependent"].asBoolean())
+        assertTrue(modern["hasCustomInputValidator"].asBoolean())
+        assertFalse(modern["hasCustomEventValidator"].asBoolean())
     }
 
     private fun eventValue(
         patterns: List<String>? = null,
         acceptedChangers: Map<ChangeMode, List<Class<*>>>? = null,
-        contextDependent: Boolean? = null
+        contextDependent: Boolean? = null,
+        hasCustomInputValidator: Boolean? = null,
+        hasCustomEventValidator: Boolean? = null
     ): EventValueData = EventValueData(
         eventClass = PlayerJoinEvent::class.java,
         valueClass = String::class.java,
@@ -62,6 +70,8 @@ class EventValueCompatibilityTest {
         addon = AddonInfo("Test", "1.0"),
         patterns = patterns,
         acceptedChangers = acceptedChangers,
-        contextDependent = contextDependent
+        contextDependent = contextDependent,
+        hasCustomInputValidator = hasCustomInputValidator,
+        hasCustomEventValidator = hasCustomEventValidator
     )
 }
