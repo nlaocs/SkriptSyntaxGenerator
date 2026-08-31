@@ -2,13 +2,13 @@
 
 [English](README.md) | 日本語
 
-LSPや各種ツールで利用するために、サーバー固有のSkript構文スナップショットを生成します。スナップショットには、安定したスキーマのもとで、使用中のSkriptバージョン、サーバー、プラグイン、登録順序、capability、および18個のデータファイルが記録されます。
+LSPや各種ツールで利用するために、サーバー固有のSkript構文スナップショットを生成します。スナップショットには、安定したスキーマのもとで、使用中のSkriptバージョン、サーバー、プラグイン、登録順序、capability、および19個のデータファイルが記録されます。
 
 生成される全ファイルについて、各フィールド、null・省略、値域、概念、バージョン差を確認するには、[スナップショットJSON形式リファレンス](docs/json-format.ja.md)を参照してください。
 
 ## Generatorの成果物
 
-2種類のadapterが、同じ19ファイルのスナップショット契約に従って出力します。
+2種類のadapterが、同じ20ファイルのスナップショット契約に従って出力します。
 
 | Skript | 成果物 | 実行環境 |
 | --- | --- | --- |
@@ -17,11 +17,11 @@ LSPや各種ツールで利用するために、サーバー固有のSkript構�
 
 対応する成果物をサーバーの`plugins`ディレクトリに配置し、サーバーを起動して`/skgen`を実行してください。デフォルトでは、ファイルは`plugins/SkriptSyntaxGenerator`に出力されます。サーバー、Skript、導入addon、またはaddonの読み込み順序が変わった場合は、サーバースナップショットを再生成してください。
 
-どちらのadapterも常に同じファイルを出力します。古いSkriptバージョンで利用できない機能は、契約で定めた空のroot（`[]`、`Operations.json`では`{}`、`Aliases.json`と`PluralRules.json`では文書化されたobject root）として出力され、利用可否は`Manifest.json.capabilities`に記録されます。
+どちらのadapterも常に同じファイルを出力します。古いSkriptバージョンで利用できない機能は、契約で定めた空のroot（`[]`、`Operations.json`では`{}`、`Aliases.json`、`Language.json`、`PluralRules.json`では文書化されたobject root）として出力され、利用可否は`Manifest.json.capabilities`に記録されます。
 
 ## Manifest capabilities
 
-`Manifest.json`はschema version 4を使用し、次の情報を記録します。
+`Manifest.json`はschema version 5を使用し、次の情報を記録します。
 
 - `syntaxApi`: `legacy-static`または`registry`
 - `eventValueApi`: `legacy`、`modern-2.15`、または`modern-2.16`
@@ -29,6 +29,8 @@ LSPや各種ツールで利用するために、サーバー固有のSkript構�
 - `aliases.supported`および`aliases.collected`
 
 `Aliases.json`には、Skriptとaddonによってグローバルに登録されたaliasが保存されます。各スクリプトの`aliases:` sectionで宣言されたaliasはscript-localなchild providerに保存されるため、Generatorのデータモデルには含まれません。したがって、ユーザーが記述したスクリプトの内容がスナップショットに混入することはありません。
+
+`Language.json`には、Skriptのグローバルな`Language` registryにロードされた実効key/value mapが保存されます。Skriptとaddonのruntime mapだけを読み取り、ユーザーの`.sk`ファイルやscript-local providerは読みません。runtime registryを検査できない場合は生成を失敗させるため、空objectはロード済みregistry自体が空だったことだけを表します。
 
 `PluralRules.json`には、runtimeで実際に使われる英語の単数形・複数形table、algorithm、評価順、完全一致の扱い、各runtime overrideの登録元addonを保存します。これによりLSPはruleをhardcodeせず、対象serverのSkriptと同じ解析を再現できます。
 
