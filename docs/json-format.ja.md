@@ -527,6 +527,8 @@ Skript source: [2.6.4のlegacy `Utils.java`](https://github.com/SkriptLang/Skrip
 
 rootはobjectです。各property名がロード済みlanguage key、property valueがSkriptのlanguage lookupから返される実効文字列です。決定的な出力にするためkey順にsortされます。
 
+schema 5では、legacy/currentの両adapterを通じて、対応するSkript 2.6.4から2.16.0までの全profileで`Language.json`を出力します。schema 3/4はこのregistryの追加前であるため、旧snapshotでfileが存在しない場合は「runtime registryが空」ではなく「データ未提供」を意味します。
+
 | フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
 | `<language-key>` | string | entry依存 | parser messageやlocalized noun keyなど、runtimeに存在するlanguage key。 |

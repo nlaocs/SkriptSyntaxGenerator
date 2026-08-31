@@ -533,6 +533,8 @@ Skript sources: [legacy `Utils.java` in 2.6.4](https://github.com/SkriptLang/Skr
 
 Root: object. Each property name is a loaded language key and each property value is the effective string returned by Skript's language lookup. The map is sorted by key for deterministic output.
 
+Schema 5 emits `Language.json` for every supported Skript profile from 2.6.4 through 2.16.0, using both the legacy and current adapters. Schema 3 and 4 snapshots predate this registry; a missing file in those snapshots means the data was unavailable, not that the runtime registry was empty.
+
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
 | `<language-key>` | string | Entry-dependent | The runtime language key, such as a parser message or a localized noun key. |

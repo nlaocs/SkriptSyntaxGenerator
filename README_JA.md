@@ -58,19 +58,19 @@ Aliasは、認識される文字列から`targets`内のindexへの対応を、�
 
 補助registryと関係データ:
 
-| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Plural rules |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Language registry | Plural rules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 `Arithmetic`は、`Operators.json`、`Operations.json`、`Differences.json`を1つのcapabilityとして表します。 `Plural rules`は`PluralRules.json`を表し、対応する全Skript versionにbuilt-in変換tableがあります。addonがruntime overrideを先頭追加できるかは`pluralOverrideSupported`で判定します。Event valueはテスト済みの全バージョンで取得できますが、metadataの形状が異なります。2.6.4-2.14.3では`eventValueApi: legacy`、2.15.4と2.16.0では`modern-2.16`です。Skriptバージョンだけから推測せず、Manifestから実際に検出された形状を参照してください。
 

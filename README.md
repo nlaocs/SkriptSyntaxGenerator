@@ -58,19 +58,19 @@ Core syntax data:
 
 Supporting registries and relationships:
 
-| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Plural rules |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
-| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Language registry | Plural rules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 `Arithmetic` covers `Operators.json`, `Operations.json`, and `Differences.json` as one capability. `Plural rules` covers `PluralRules.json`; every supported Skript version has a built-in conversion table, while `pluralOverrideSupported` records whether addons can prepend runtime overrides. Event values are available for every tested version, but their metadata shape changes: 2.6.4-2.14.3 use `eventValueApi: legacy`, while 2.15.4 and 2.16.0 expose the `modern-2.16` shape. The exact detected shape must be read from the Manifest instead of inferred only from the Skript version.
 
