@@ -17,6 +17,7 @@ import jp.nlaocs.skriptSyntaxGenerator.util.getTypeStr
 import jp.nlaocs.skriptSyntaxGenerator.util.literalValues
 import jp.nlaocs.skriptSyntaxGenerator.util.parseContexts
 import jp.nlaocs.skriptSyntaxGenerator.util.parserPatterns
+import jp.nlaocs.skriptSyntaxGenerator.util.registeredParserPatterns
 import jp.nlaocs.skriptSyntaxGenerator.util.stableName
 import jp.nlaocs.skriptSyntaxGenerator.util.typeLiterals
 import org.bukkit.Bukkit
@@ -75,6 +76,7 @@ class TypeData(
     val usage = s.usage?.toList().cleaning()
     val enumValues = s.c.enumValues().ifEmpty { null }
     val parserPatterns = s.parserPatterns()
+    val registeredParserPatterns = s.registeredParserPatterns()
     val literalValues = s.literalValues()
     val typeLiterals = s.typeLiterals()
     val parserClass: Class<*>? = s.parser?.javaClass

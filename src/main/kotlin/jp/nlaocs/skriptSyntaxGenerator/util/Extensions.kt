@@ -7,6 +7,7 @@ import ch.njol.skript.expressions.base.PropertyExpression
 import ch.njol.skript.lang.ParseContext
 import ch.njol.skript.localization.Language
 import jp.nlaocs.skriptSyntaxGenerator.data.TypeLiteralData
+import jp.nlaocs.skriptSyntaxGenerator.data.RegisteredTypeParserPatternData
 import org.skriptlang.skript.registration.SyntaxInfo
 import org.skriptlang.skript.util.Priority
 import java.util.Locale
@@ -61,6 +62,104 @@ fun Class<*>.enumValues(): List<String> {
 }
 
 fun ClassInfo<*>.parserPatterns(): List<String>? = parserPatterns(parser)
+
+fun ClassInfo<*>.registeredParserPatterns(): List<RegisteredTypeParserPatternData>? =
+    if (c.name == "ch.njol.skript.entity.EntityData") {
+        registeredParserPatterns(c)
+    } else {
+        null
+    }
+
+internal fun registeredParserPatterns(owner: Class<*>): List<RegisteredTypeParserPatternData>? {
+    val infos = runCatching {
+        owner.getDeclaredField("infos").also { it.trySetAccessible() }.get(null) as? Iterable<*>
+    }.getOrNull() ?: return null
+
+    val registrations = mutableListOf<RegisteredTypeParserPatternData>()
+    for ((registrationIndex, info) in infos.withIndex()) {
+        info ?: return null
+        val patterns = reflectedStringArray(info, "getPatterns")
+        val valueClass = reflectedMethodValue(info, "getElementClass") as? Class<*>
+        val representedClass = reflectedFieldValue(info, "entityClass") as? Class<*>
+        if (patterns == null || valueClass == null || representedClass == null) {
+            return null
+        }
+        patterns.forEachIndexed { index, pattern ->
+            val sourceCodeName = reflectedMethodValue(info, "getCodeNameFromPattern", index) as? String
+                ?: reflectedArrayElement(info, "codeNames", index) as? String
+                ?: reflectedFieldValue(info, "codeName") as? String
+            registrations += RegisteredTypeParserPatternData(
+                pattern = pattern,
+                registrationIndex = registrationIndex,
+                patternIndex = index,
+                sourceCodeName = sourceCodeName,
+                dataClass = valueClass,
+                representedClass = representedClassForPattern(
+                    valueClass,
+                    sourceCodeName,
+                    representedClass
+                )
+            )
+        }
+    }
+    return registrations.ifEmpty { null }
+}
+
+private fun reflectedStringArray(instance: Any, name: String): List<String>? {
+    val value = reflectedMethodValue(instance, name) ?: return null
+    if (!value.javaClass.isArray) return null
+    return (0 until java.lang.reflect.Array.getLength(value))
+        .mapNotNull { index -> java.lang.reflect.Array.get(value, index) as? String }
+        .ifEmpty { null }
+}
+
+private fun reflectedMethodValue(instance: Any, name: String, vararg arguments: Any): Any? {
+    val method = instance.javaClass.methods.firstOrNull {
+        it.name == name && it.parameterCount == arguments.size
+    } ?: return null
+    return runCatching {
+        method.trySetAccessible()
+        method.invoke(instance, *arguments)
+    }.getOrNull()
+}
+
+private fun reflectedFieldValue(instance: Any, name: String): Any? {
+    val target = if (instance is Class<*>) null else instance
+    var type: Class<*>? = if (instance is Class<*>) instance else instance.javaClass
+    while (type != null) {
+        val field = type.declaredFields.firstOrNull { it.name == name }
+        if (field != null) {
+            return runCatching {
+                field.trySetAccessible()
+                field.get(target)
+            }.getOrNull()
+        }
+        type = type.superclass
+    }
+    return null
+}
+
+private fun reflectedArrayElement(instance: Any, name: String, index: Int): Any? {
+    val values = reflectedFieldValue(instance, name) ?: return null
+    if (!values.javaClass.isArray || index !in 0 until java.lang.reflect.Array.getLength(values)) {
+        return null
+    }
+    return java.lang.reflect.Array.get(values, index)
+}
+
+private fun representedClassForPattern(
+    dataClass: Class<*>,
+    sourceCodeName: String?,
+    fallback: Class<*>
+): Class<*> {
+    if (dataClass.name != "ch.njol.skript.entity.SimpleEntityData" || sourceCodeName == null) {
+        return fallback
+    }
+    return (reflectedFieldValue(dataClass, "types") as? Iterable<*>)
+        ?.firstOrNull { reflectedFieldValue(it ?: return@firstOrNull false, "codeName") == sourceCodeName }
+        ?.let { reflectedFieldValue(it, "c") as? Class<*> }
+        ?: fallback
+}
 
 internal fun parserPatterns(parser: Any?): List<String>? {
     parser ?: return null
