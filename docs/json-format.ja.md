@@ -262,6 +262,7 @@ typeはnumber、player、locationなどのSkript型を、Javaでの解析・変�
 | `parserPatterns` | `array<string>` | 省略可 | patternを公開する型parserが受理する完全一致の表記。ローカライズされたenumの別名も含む。 |
 | `literalValues` | `array<string>` | 省略可 | parserと有限supplierの両方を持つ型について、supplierの全値をparserで文字列化した標準表記。 |
 | `typeLiterals` | `array<TypeLiteralData>` | 省略可 | 有限supplier値の構造化情報。型固有の手動補正をせず、parser表記とruntime identityを保持する。 |
+| `registeredParserPatterns` | `array<RegisteredTypeParserPatternData>` | 省略可 | 有限supplierから復元できないruntime parser登録を照合順に保持する。現在はSkriptの`entitydata`型で出力する。省略は、parserが何も受理しないという意味ではなく、generatorが対象registryを公開できなかったことを表す。 |
 | `parserClass` | class-name | 省略可 | この型のSkript parserを実装するruntime class。 |
 | `parseContexts` | `array<string>` | 省略可 | parserが入力を受理すると報告した`ParseContext`名。 |
 | `defaultExpressionClass` | class-name | 省略可 | context依存のdefault値を供給するclass。 |
@@ -283,6 +284,19 @@ typeはnumber、player、locationなどのSkript型を、Javaでの解析・変�
 | `valueClass` | class-name | 必須 | supplier値のruntime Java class。登録typeのclassより具体的な場合がある。 |
 | `representedClass` | class-name | 省略可 | supplier値が公開する引数なし`getType(): Class`の結果。例えばEntityData値なら、表しているBukkit entity classを保持できる。 |
 | `enumConstant` | string | 省略可 | supplier値がenumなら正確なJava enum constant名。 |
+
+`RegisteredTypeParserPatternData`:
+
+| フィールド | 型 | 有無 | 意味 |
+| --- | --- | --- | --- |
+| `pattern` | string | 必須 | runtime型parserが使用するSkript構文pattern。選択肢、省略部分、parse tag、正規表現、型captureを含み得るため、単純なliteralとして扱ってはならない。 |
+| `registrationIndex` | int, `>= 0` | 必須 | parser登録全体における0始まりの順序。小さい登録からSkriptが検討する。 |
+| `patternIndex` | int, `>= 0` | 必須 | 同じ登録内における0始まりのpattern位置。 |
+| `sourceCodeName` | string | 省略可 | 実行中のSkript versionが公開している場合、このpatternに対応するEntityData内部code name。 |
+| `dataClass` | class-name | 必須 | parse結果のEntityData値として生成されるJava class。 |
+| `representedClass` | class-name | 必須 | そのEntityData値が表すBukkit entity class。 |
+
+これは展開済みliteral一覧ではなくruntime registryそのものを表す。例えばEntityData登録は、有限supplierが既定entity値しか返さない場合でも、pattern branchによって年齢や状態を区別できる。`SimpleEntityData`では、patternの`sourceCodeName`に対応する内部entryから`representedClass`を解決するため、`zombie` patternには登録全体の広い`org.bukkit.entity.Entity`ではなく`org.bukkit.entity.Zombie`を記録する。readerは二つの順序フィールドを保持し、未対応の動的captureを含むpatternをliteralとして誤って受理せず、未解決として後段へ委ねるべきである。
 
 `NounData`:
 
