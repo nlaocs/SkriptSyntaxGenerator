@@ -52,6 +52,23 @@ class ExtensionsTest {
         assertEquals(Number::class.java, represented.representedClass)
     }
 
+    @Test
+    fun `registered type parser patterns retain runtime ownership`() {
+        val registrations = registeredParserPatterns(ExampleRegistry::class.java).orEmpty()
+
+        assertEquals(listOf("creeper", " powered creeper "), registrations.map { it.pattern })
+        assertEquals(listOf(0, 0), registrations.map { it.registrationIndex })
+        assertEquals(listOf(0, 1), registrations.map { it.patternIndex })
+        assertEquals(listOf("normal", "powered"), registrations.map { it.sourceCodeName })
+        assertEquals(listOf(ExampleValue::class.java, ExampleValue::class.java), registrations.map { it.dataClass })
+        assertEquals(listOf(Number::class.java, Number::class.java), registrations.map { it.representedClass })
+    }
+
+    @Test
+    fun `registered type parser patterns fail closed when a registration is incomplete`() {
+        assertNull(registeredParserPatterns(IncompleteRegistry::class.java))
+    }
+
     private enum class ExampleValue {
         FIRST_VALUE,
         SECOND
@@ -76,5 +93,44 @@ class ExtensionsTest {
         override fun toString(value: RepresentedValue, flags: Int): String = "represented"
 
         override fun toVariableNameString(value: RepresentedValue): String = "represented"
+    }
+
+    private class ExampleRegistry {
+        private companion object {
+            @JvmField
+            val infos = listOf(ExampleRegistration())
+        }
+    }
+
+    private class ExampleRegistration {
+        @Suppress("unused")
+        private val codeName = "fallback"
+
+        @Suppress("unused")
+        private val entityClass = Number::class.java
+
+        @Suppress("unused")
+        fun getPatterns(): Array<String> = arrayOf("creeper", " powered creeper ")
+
+        @Suppress("unused")
+        fun getCodeNameFromPattern(index: Int): String = if (index == 0) "normal" else "powered"
+
+        @Suppress("unused")
+        fun getElementClass(): Class<*> = ExampleValue::class.java
+    }
+
+    private class IncompleteRegistry {
+        private companion object {
+            @JvmField
+            val infos = listOf(ExampleRegistration(), IncompleteRegistration())
+        }
+    }
+
+    private class IncompleteRegistration {
+        @Suppress("unused")
+        fun getPatterns(): Array<String> = arrayOf("missing entity class")
+
+        @Suppress("unused")
+        fun getElementClass(): Class<*> = ExampleValue::class.java
     }
 }
