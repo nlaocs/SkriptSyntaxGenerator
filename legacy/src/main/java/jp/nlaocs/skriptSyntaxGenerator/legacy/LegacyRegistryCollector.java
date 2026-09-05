@@ -82,6 +82,7 @@ final class LegacyRegistryCollector {
             putList(data, "usage", LegacyReflection.strings(LegacyReflection.invokeOrNull(info, "getUsage")));
             putList(data, "enumValues", enumValues(originalClass));
             putList(data, "parserPatterns", parserPatterns(parser));
+            putList(data, "registeredParserPatterns", registeredParserPatterns(originalClass));
             Object supplier = LegacyReflection.invokeOrNull(info, "getSupplier");
             putList(data, "literalValues", literalValues(parser, supplier));
             putList(data, "typeLiterals", typeLiterals(parser, supplier));
@@ -322,6 +323,67 @@ final class LegacyRegistryCollector {
 
     private List<String> parserPatterns(Object parser) {
         return LegacyReflection.strings(LegacyReflection.invokeOrNull(parser, "getPatterns"));
+    }
+
+    private List<Map<String, Object>> registeredParserPatterns(Class<?> owner) {
+        if (!owner.getName().equals("ch.njol.skript.entity.EntityData")) {
+            return Collections.emptyList();
+        }
+        Object rawInfos = LegacyReflection.field(owner, "infos");
+        if (rawInfos == null) return Collections.emptyList();
+
+        List<Map<String, Object>> registrations = new ArrayList<Map<String, Object>>();
+        List<Object> infos = LegacyReflection.list(rawInfos);
+        for (int registrationIndex = 0; registrationIndex < infos.size(); registrationIndex++) {
+            Object info = infos.get(registrationIndex);
+            Object rawPatterns = LegacyReflection.invokeOrNull(info, "getPatterns");
+            Class<?> dataClass = classValue(LegacyReflection.invokeOrNull(info, "getElementClass"));
+            Class<?> representedClass = classValue(LegacyReflection.field(info, "entityClass"));
+            if (rawPatterns == null || dataClass == null || representedClass == null) {
+                return Collections.emptyList();
+            }
+
+            List<Object> patterns = LegacyReflection.list(rawPatterns);
+            for (int patternIndex = 0; patternIndex < patterns.size(); patternIndex++) {
+                Object rawPattern = patterns.get(patternIndex);
+                if (!(rawPattern instanceof String)) return Collections.emptyList();
+
+                Map<String, Object> registration = new LinkedHashMap<String, Object>();
+                registration.put("pattern", rawPattern);
+                registration.put("registrationIndex", registrationIndex);
+                registration.put("patternIndex", patternIndex);
+                Object codeName = LegacyReflection.invokeOrNull(info, "getCodeNameFromPattern", patternIndex);
+                if (codeName == null) {
+                    List<Object> codeNames = LegacyReflection.list(LegacyReflection.field(info, "codeNames"));
+                    if (patternIndex < codeNames.size()) codeName = codeNames.get(patternIndex);
+                }
+                if (codeName == null) codeName = LegacyReflection.field(info, "codeName");
+                put(registration, "sourceCodeName", codeName);
+                registration.put("dataClass", className(dataClass));
+                registration.put(
+                    "representedClass",
+                    className(representedClassForPattern(dataClass, codeName, representedClass))
+                );
+                registrations.add(registration);
+            }
+        }
+        return registrations;
+    }
+
+    private Class<?> representedClassForPattern(
+        Class<?> dataClass,
+        Object sourceCodeName,
+        Class<?> fallback
+    ) {
+        if (!dataClass.getName().equals("ch.njol.skript.entity.SimpleEntityData") || sourceCodeName == null) {
+            return fallback;
+        }
+        for (Object simpleInfo : LegacyReflection.list(LegacyReflection.field(dataClass, "types"))) {
+            if (!sourceCodeName.equals(LegacyReflection.field(simpleInfo, "codeName"))) continue;
+            Class<?> representedClass = classValue(LegacyReflection.field(simpleInfo, "c"));
+            if (representedClass != null) return representedClass;
+        }
+        return fallback;
     }
 
     private List<String> literalValues(Object parser, Object supplier) {

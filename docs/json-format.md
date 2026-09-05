@@ -270,6 +270,7 @@ A type connects a Skript type name such as a number, player, or location to Java
 | `parserPatterns` | `array<string>` | Optional | Exact literal spellings exposed by a patterned type parser, including localized enum alternatives. |
 | `literalValues` | `array<string>` | Optional | Canonical text rendered from every value exposed by both the type parser and its finite supplier. |
 | `typeLiterals` | `array<TypeLiteralData>` | Optional | Structured finite supplier values. Each entry preserves parser renderings and runtime identity without type-specific generator corrections. |
+| `registeredParserPatterns` | `array<RegisteredTypeParserPatternData>` | Optional | Ordered runtime parser registrations that cannot be reconstructed from a finite supplier. Currently emitted for Skript's `entitydata` type. Absence means the generator could not expose such a registry, not that the parser accepts no values. |
 | `parserClass` | class-name | Optional | Runtime class implementing Skript's parser for this type. |
 | `parseContexts` | `array<string>` | Optional | `ParseContext` names in which the parser reports that it accepts input. |
 | `defaultExpressionClass` | class-name | Optional | Java class providing a context-dependent default value of this type. |
@@ -291,6 +292,19 @@ A type connects a Skript type name such as a number, player, or location to Java
 | `valueClass` | class-name | Required | Runtime Java class of the supplied value. This can be more specific than the registered type class. |
 | `representedClass` | class-name | Optional | Class returned by a public zero-argument `getType(): Class` method on the supplied value. For example, an EntityData value can expose the Bukkit entity class it represents. |
 | `enumConstant` | string | Optional | Exact Java enum constant name when the supplied value is an enum. |
+
+`RegisteredTypeParserPatternData` fields:
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `pattern` | string | Required | Skript syntax pattern used by the runtime type parser. It may contain choices, optional text, parse tags, regular expressions, or typed captures and must not be treated as a plain literal. |
+| `registrationIndex` | int, `>= 0` | Required | Zero-based order of the underlying parser registration. Lower values are considered first by Skript. |
+| `patternIndex` | int, `>= 0` | Required | Zero-based pattern position within that registration. |
+| `sourceCodeName` | string | Optional | Internal EntityData code name associated with this exact pattern when the running Skript version exposes it. |
+| `dataClass` | class-name | Required | Java class instantiated to represent the parsed EntityData value. |
+| `representedClass` | class-name | Required | Bukkit entity class represented by the resulting EntityData value. |
+
+These records describe the runtime registry rather than a pre-expanded list. For example, an EntityData registration can distinguish age or state through pattern branches even when its finite supplier exposes only the default entity value. For `SimpleEntityData`, `representedClass` is resolved from the internal entry for that pattern's `sourceCodeName`, so a `zombie` pattern records `org.bukkit.entity.Zombie` instead of the registration's broader `org.bukkit.entity.Entity` class. Consumers should preserve both order fields and defer patterns containing unsupported dynamic captures instead of accepting them as literal text.
 
 `NounData` fields:
 
