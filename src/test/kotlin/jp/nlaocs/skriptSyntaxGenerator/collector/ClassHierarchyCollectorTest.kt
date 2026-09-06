@@ -1,11 +1,29 @@
 package jp.nlaocs.skriptSyntaxGenerator.collector
 
+import ch.njol.skript.lang.DefaultExpression
+import jp.nlaocs.skriptSyntaxGenerator.data.DefaultExpressionData
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.net.URLClassLoader
 
 class ClassHierarchyCollectorTest {
+    @Test
+    fun `collects classes nested in default expression metadata`() {
+        val records = ClassHierarchyCollector().collect(
+            listOf(
+                DefaultExpressionData(
+                    implementationClass = DefaultExpression::class.java,
+                    literal = false,
+                    returnType = null,
+                    single = null
+                )
+            )
+        )
+
+        assertTrue(records.any { it.name == DefaultExpression::class.java.name })
+    }
+
     @Test
     fun `reads method descriptors when a declared type is unavailable`() {
         val testClasses = BrokenMethodOwnerFixture::class.java.protectionDomain.codeSource.location
