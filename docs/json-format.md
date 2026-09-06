@@ -2,7 +2,7 @@
 
 English | [Japanese](json-format.ja.md)
 
-This document describes schema version `5`, the 20 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
+This document describes schema version `6`, the 20 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
 
 ## Reading the format
 
@@ -273,13 +273,30 @@ A type connects a Skript type name such as a number, player, or location to Java
 | `registeredParserPatterns` | `array<RegisteredTypeParserPatternData>` | Optional | Ordered runtime parser registrations that cannot be reconstructed from a finite supplier. Currently emitted for Skript's `entitydata` type. Absence means the generator could not expose such a registry, not that the parser accepts no values. |
 | `parserClass` | class-name | Optional | Runtime class implementing Skript's parser for this type. |
 | `parseContexts` | `array<string>` | Optional | `ParseContext` names in which the parser reports that it accepts input. |
-| `defaultExpressionClass` | class-name | Optional | Java class providing a context-dependent default value of this type. |
+| `defaultExpression` | `DefaultExpressionData` | Optional | Static metadata for the Expression Skript may insert when a non-nullable capture of this type is omitted. Absence means the type registers no default Expression. |
 | `hasParser` | boolean | Required | Whether text can be parsed directly into this type. |
 | `hasSerializer` | boolean | Required | Whether values can be persisted by Skript. |
 | `hasSupplier` | boolean | Required | Whether the type supplies a finite value iterator. |
 | `properties` | `array<string>` | Required | Property names registered for this type. Legacy adapter currently emits `[]`; use `Properties.json` when available. |
 | `before` | `array<string>` | Optional | Type code names this type explicitly requests to be parsed before. Current adapter only; omitted when empty. |
 | `after` | `array<string>` | Optional | Type code names this type explicitly requests to be parsed after. Current adapter only; omitted when empty. |
+
+`DefaultExpressionData` fields:
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `implementationClass` | class-name | Required | Runtime Java class implementing the registered default Expression. |
+| `literal` | boolean | Required | Whether the default Expression is a Skript `Literal`. This affects captures that allow only literals or only Expressions. |
+| `returnType` | class-name | Optional | Return class reported by `getReturnType()` when it can be queried safely without parse context. Omitted when the implementation requires unavailable initialization state. |
+| `single` | boolean | Optional | Result of `isSingle()` when it can be queried safely without parse context. `true` means one value; `false` means multiple values. Omitted when the implementation requires unavailable initialization state. |
+
+This object deliberately does not claim that the default is usable in every
+context. Missing `returnType` or `single` means the generator could not safely
+prove that part of its static shape. The runtime Java value held by a literal
+default is not serialized; this descriptor records the shape needed for static
+parsing, not a clone of Skript's runtime object. Skript also calls `setTime(...)` and `init()` while parsing, and Section or
+Event-local defaults may override the type registration. These decisions require
+the active parse context and belong in the parser or its WASM addons.
 
 `TypeLiteralData` fields:
 
@@ -467,7 +484,7 @@ This file closes the Java type graph over every class referenced by the other ca
 | `superClass` | class-name | Optional | Direct superclass. Omitted for roots/interfaces where Java reports none. |
 | `interfaces` | `array<class-name>` | Required | Direct interfaces, sorted. Empty is valid. |
 | `componentType` | class-name | Array only | Component class of an array. |
-| `methods` | `array<ClassMethodData>` | Required | Methods declared directly by this class, equivalent to `Class.getDeclaredMethods()`. Includes every visibility and synthetic/bridge method; entries are deduplicated and sorted by exact signature. Generation fails if reflection is unavailable rather than emitting an incomplete schema 5 record. |
+| `methods` | `array<ClassMethodData>` | Required | Methods declared directly by this class, equivalent to `Class.getDeclaredMethods()`. Includes every visibility and synthetic/bridge method; entries are deduplicated and sorted by exact signature. Generation fails if reflection is unavailable rather than emitting an incomplete schema 5+ record. |
 | `containerElementType` | class-name | Optional | Element class declared by Skript's runtime `@ContainerType` annotation. Consumers use it when a single `Container` value is exposed as multiple loop values. |
 | `provider` | `AddonInfo` | Optional | Plugin whose classloader/code source owns the class. Core/JDK or unresolved classes may have no provider. |
 
@@ -562,7 +579,7 @@ Skript sources: [`Language.java` in 2.6.4](https://github.com/SkriptLang/Skript/
 
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | Required | Exact value `5` for this document. Reject or negotiate unknown major schema values. |
+| `schemaVersion` | int | Required | Exact value `6` for this document. Reject or negotiate unknown major schema values. |
 | `snapshotId` | sha256 | Required | Identity derived from schema, content, server, language, plugin list, capabilities, and file list. |
 | `contentDigest` | sha256 | Required | Digest of the 19 serialized data files, excluding the manifest. |
 | `generatedAt` | ISO-8601 string | Required | UTC `Instant` timestamp. It is not part of `snapshotId`. |

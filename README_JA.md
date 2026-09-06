@@ -21,12 +21,17 @@ LSPや各種ツールで利用するために、サーバー固有のSkript構�
 
 ## Manifest capabilities
 
-`Manifest.json`はschema version 5を使用し、次の情報を記録します。
+`Manifest.json`はschema version 6を使用し、次の情報を記録します。
 
 - `syntaxApi`: `legacy-static`または`registry`
 - `eventValueApi`: `legacy`、`modern-2.15`、または`modern-2.16`
 - `syntaxKinds`: 各registryを取得できるかどうか
 - `aliases.supported`および`aliases.collected`
+
+schema 6では、従来の`Types.json.defaultExpressionClass`を構造化された
+`defaultExpression` metadataへ置き換えました。実装classとliteral性に加え、parse
+contextなしで取得できた場合は`returnType`と`single`も保持します。time stateと
+初期化可否はparser/WASM側で判定します。
 
 `Aliases.json`には、Skriptとaddonによってグローバルに登録されたaliasが保存されます。各スクリプトの`aliases:` sectionで宣言されたaliasはscript-localなchild providerに保存されるため、Generatorのデータモデルには含まれません。したがって、ユーザーが記述したスクリプトの内容がスナップショットに混入することはありません。
 
@@ -42,19 +47,22 @@ Aliasは、認識される文字列から`targets`内のindexへの対応を、�
 
 主要な構文データ:
 
-| Skript | Conditions | Effects | Events | Expressions | Sections | Structure registry | Types | Functions |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2.6.4 | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes |
-| 2.7.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.8.7 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.9.5 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.10.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.11.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.12.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Skript | Conditions | Effects | Events | Expressions | Sections | Structure registry | Types | Type defaults | Functions |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2.6.4 | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
+| 2.7.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.8.7 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.9.5 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.10.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.11.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.12.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+
+`Type defaults`は、登録されたdefault Expressionを識別できることを表します。
+schema 6では実装classとliteral性を保持し、context依存の初期化判定はparser/WASM側に残します。
 
 補助registryと関係データ:
 

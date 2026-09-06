@@ -21,12 +21,18 @@ Both adapters always emit the same files. Features unavailable in an older Skrip
 
 ## Manifest capabilities
 
-`Manifest.json` uses schema version 5 and records:
+`Manifest.json` uses schema version 6 and records:
 
 - `syntaxApi`: `legacy-static` or `registry`
 - `eventValueApi`: `legacy`, `modern-2.15`, or `modern-2.16`
 - `syntaxKinds`: availability of each collected registry
 - `aliases.supported` and `aliases.collected`
+
+Schema 6 replaces the former `Types.json.defaultExpressionClass` scalar with
+structured `defaultExpression` metadata. It records the implementation class
+and whether the implementation is a literal, plus `returnType` and `single`
+when those methods can be queried without parse context. Time-state and
+initialization checks remain parser/WASM responsibility.
 
 `Aliases.json` snapshots aliases registered globally by Skript and addons. Per-script aliases declared through an `aliases:` section are stored in script-local child providers and are outside the generator's data model, so user script contents never become part of the snapshot.
 
@@ -42,19 +48,23 @@ Aliases are emitted losslessly with a sorted `aliases` map from the exact recogn
 
 Core syntax data:
 
-| Skript | Conditions | Effects | Events | Expressions | Sections | Structure registry | Types | Functions |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2.6.4 | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes |
-| 2.7.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.8.7 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.9.5 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.10.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.11.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.12.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Skript | Conditions | Effects | Events | Expressions | Sections | Structure registry | Types | Type defaults | Functions |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2.6.4 | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes |
+| 2.7.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.8.7 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.9.5 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.10.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.11.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.12.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+
+`Type defaults` means the registered default Expression is identified. Schema 6
+records its implementation class and whether it is a literal; context-dependent
+initialization remains parser/WASM work.
 
 Supporting registries and relationships:
 

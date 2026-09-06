@@ -2,7 +2,7 @@
 
 [English](json-format.md) | 日本語
 
-この文書は、`/skgen` が出力するschema version `5`の20ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
+この文書は、`/skgen` が出力するschema version `6`の20ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
 
 ## 形式の読み方
 
@@ -265,13 +265,30 @@ typeはnumber、player、locationなどのSkript型を、Javaでの解析・変�
 | `registeredParserPatterns` | `array<RegisteredTypeParserPatternData>` | 省略可 | 有限supplierから復元できないruntime parser登録を照合順に保持する。現在はSkriptの`entitydata`型で出力する。省略は、parserが何も受理しないという意味ではなく、generatorが対象registryを公開できなかったことを表す。 |
 | `parserClass` | class-name | 省略可 | この型のSkript parserを実装するruntime class。 |
 | `parseContexts` | `array<string>` | 省略可 | parserが入力を受理すると報告した`ParseContext`名。 |
-| `defaultExpressionClass` | class-name | 省略可 | context依存のdefault値を供給するclass。 |
+| `defaultExpression` | `DefaultExpressionData` | 省略可 | non-nullableな型captureが省略されたときにSkriptが補うExpressionの静的metadata。省略時は、そのtypeにdefault Expressionが登録されていない。 |
 | `hasParser` | boolean | 必須 | textからこの型を直接parseできるか。 |
 | `hasSerializer` | boolean | 必須 | Skriptが値を永続化できるか。 |
 | `hasSupplier` | boolean | 必須 | 有限値iteratorを供給するsupplierを持つか。 |
 | `properties` | `array<string>` | 必須 | この型に登録されたproperty名。legacy adapterでは現在`[]`なので、利用可能なら`Properties.json`を見る。 |
 | `before` | `array<string>` | 省略可 | この型より後にparseするよう要求したtype code name。つまりこの型が先。current adapterのみで、空なら省略。 |
 | `after` | `array<string>` | 省略可 | この型より先にparseするよう要求したtype code name。つまりこの型が後。current adapterのみで、空なら省略。 |
+
+`DefaultExpressionData`のフィールド:
+
+| フィールド | 型 | 有無 | 意味 |
+| --- | --- | --- | --- |
+| `implementationClass` | class-name | 必須 | 登録されたdefault Expressionを実装するruntime Java class。 |
+| `literal` | boolean | 必須 | default ExpressionがSkriptの`Literal`か。literalのみ・Expressionのみを許すcaptureの判定に使う。 |
+| `returnType` | class-name | 省略可 | parse contextなしで安全に呼べた場合の`getReturnType()`の結果。初期化状態が必要な実装では省略する。 |
+| `single` | boolean | 省略可 | parse contextなしで安全に呼べた場合の`isSingle()`の結果。`true`は単一、`false`は複数。初期化状態が必要な実装では省略する。 |
+
+このobjectだけで、あらゆるcontextでdefaultを利用できるとは断定しません。
+`returnType`または`single`の省略は、その静的な形をgeneratorが安全に確定できなかったことを表します。
+literal defaultが内部に持つruntime Java value自体はserializeしません。このdescriptorは
+静的parseに必要な形を記録するもので、Skriptのruntime objectを複製するものではありません。
+Skriptはparse時に`setTime(...)`と`init()`を呼び、Section/Event固有のdefaultが
+type登録を上書きする場合もあります。その判定はactive parse contextを必要とするため、
+parserまたはWASM addonが担当します。
 
 `TypeLiteralData`:
 
@@ -459,7 +476,7 @@ rootは`object<string, array<OperationData>>`で、keyはoperator signです。�
 | `superClass` | class-name | 省略可 | 直接superclass。Javaがnoneを返すroot/interfaceでは省略。 |
 | `interfaces` | `array<class-name>` | 必須 | sort済みの直接interface。`[]`も有効。 |
 | `componentType` | class-name | arrayのみ | 配列要素class。 |
-| `methods` | `array<ClassMethodData>` | 必須 | このclassに直接declareされた`Class.getDeclaredMethods()`相当のmethod。visibilityで絞らず、synthetic/bridge methodも保持し、完全signatureで重複排除・sortする。reflection不能時は不完全なschema 5 recordを出さず、生成を失敗させる。 |
+| `methods` | `array<ClassMethodData>` | 必須 | このclassに直接declareされた`Class.getDeclaredMethods()`相当のmethod。visibilityで絞らず、synthetic/bridge methodも保持し、完全signatureで重複排除・sortする。reflection不能時は不完全なschema 5以降のrecordを出さず、生成を失敗させる。 |
 | `containerElementType` | class-name | 省略可 | Skriptのruntime `@ContainerType` annotationで宣言された要素class。単一の`Container`値をloop内で複数要素として扱う際に使用する。 |
 | `provider` | `AddonInfo` | 省略可 | classloader/code sourceを所有するplugin。JDK/coreや未解決classでは省略可。 |
 
@@ -556,7 +573,7 @@ Skript source: [2.6.4の`Language.java`](https://github.com/SkriptLang/Skript/bl
 
 | フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | 必須 | この文書ではexact `5`。未知のmajor schemaは拒否または別処理する。 |
+| `schemaVersion` | int | 必須 | この文書ではexact `6`。未知のmajor schemaは拒否または別処理する。 |
 | `snapshotId` | sha256 | 必須 | schema、content、server、language、plugin list、capability、file list由来のidentity。 |
 | `contentDigest` | sha256 | 必須 | Manifestを除く19 data fileのserialized content digest。 |
 | `generatedAt` | ISO-8601 string | 必須 | UTC `Instant`。`snapshotId`には含まれない。 |
