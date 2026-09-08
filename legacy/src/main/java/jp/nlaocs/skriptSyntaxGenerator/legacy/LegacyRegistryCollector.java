@@ -89,7 +89,7 @@ final class LegacyRegistryCollector {
             if (parser != null) data.put("parserClass", className(parser.getClass()));
             putList(data, "parseContexts", parseContexts(parser));
             if (defaultExpression != null) {
-                data.put("defaultExpressionClass", className(defaultExpression.getClass()));
+                data.put("defaultExpression", defaultExpressionData(defaultExpression));
             }
             data.put("hasParser", parser != null);
             data.put("hasSerializer", serializer != null);
@@ -100,6 +100,18 @@ final class LegacyRegistryCollector {
             result.add(data);
         }
         return result;
+    }
+
+    private Map<String, Object> defaultExpressionData(Object expression) {
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("implementationClass", className(expression.getClass()));
+        Class<?> literalClass = LegacyReflection.classOrNull("ch.njol.skript.lang.Literal", classLoader);
+        data.put("literal", literalClass != null && literalClass.isInstance(expression));
+        Class<?> returnType = classValue(LegacyReflection.invokeOrNull(expression, "getReturnType"));
+        if (returnType != null) data.put("returnType", className(returnType));
+        Object single = LegacyReflection.invokeOrNull(expression, "isSingle");
+        if (single instanceof Boolean) data.put("single", single);
+        return data;
     }
 
     List<Map<String, Object>> collectFunctions() {

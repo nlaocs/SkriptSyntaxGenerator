@@ -49,6 +49,12 @@ object SnapshotValidator {
         "Structures.json"
     )
 
+    private val standardDefaultExpressionClasses = setOf(
+        "ch.njol.skript.lang.util.SimpleLiteral",
+        "ch.njol.skript.expressions.base.EventValueExpression",
+        "ch.njol.skript.expressions.ExprDamageCause"
+    )
+
     fun validate(
         directory: Path,
         expectedEventValueMetadata: String? = null,
@@ -463,10 +469,19 @@ object SnapshotValidator {
         val codeNames = types.mapNotNull { it["codeName"]?.asText() }.toSet()
         expect(codeNames.size == types.size(), errors) { "Type codeNames are missing or duplicated" }
 
-        types.forEach { type ->
+        types.forEachIndexed { index, type ->
             type.textList("assignableTo").forEach { reference ->
                 expect(reference in codeNames, errors) {
                     "Type ${type["codeName"]?.asText()} references missing assignableTo type $reference"
+                }
+            }
+            val defaultExpression = type["defaultExpression"] ?: return@forEachIndexed
+            if (defaultExpression["implementationClass"]?.asText() in standardDefaultExpressionClasses) {
+                expect(defaultExpression["returnType"]?.isTextual == true, errors) {
+                    "Types.json[$index].defaultExpression is missing returnType for a standard Skript implementation"
+                }
+                expect(defaultExpression["single"]?.isBoolean == true, errors) {
+                    "Types.json[$index].defaultExpression is missing single for a standard Skript implementation"
                 }
             }
         }

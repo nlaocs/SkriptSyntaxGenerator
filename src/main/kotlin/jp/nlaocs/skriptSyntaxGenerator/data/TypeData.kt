@@ -2,7 +2,6 @@ package jp.nlaocs.skriptSyntaxGenerator.data
 
 import ch.njol.skript.classes.Changer
 import ch.njol.skript.classes.ClassInfo
-import ch.njol.skript.lang.DefaultExpression
 import ch.njol.skript.localization.Noun
 import ch.njol.skript.registrations.Classes
 import jp.nlaocs.skriptSyntaxGenerator.data.common.Addon
@@ -82,7 +81,7 @@ class TypeData(
     val parserClass: Class<*>? = s.parser?.javaClass
     val parseContexts = s.parseContexts()
 
-    val defaultExpressionClass: Class<out DefaultExpression<*>>? = s.defaultExpression?.javaClass
+    val defaultExpression: DefaultExpressionData? = s.defaultExpression?.let(DefaultExpressionData::from)
     val hasParser: Boolean = s.parser != null
     val hasSerializer: Boolean = s.serializer != null
     val hasSupplier: Boolean = s.supplier != null
