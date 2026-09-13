@@ -2,13 +2,13 @@
 
 [English](README.md) | 日本語
 
-LSPや各種ツールで利用するために、サーバー固有のSkript構文スナップショットを生成します。スナップショットには、安定したスキーマのもとで、使用中のSkriptバージョン、サーバー、プラグイン、登録順序、capability、および19個のデータファイルが記録されます。
+LSPや各種ツールで利用するために、サーバー固有のSkript構文スナップショットを生成します。スナップショットには、安定したスキーマのもとで、使用中のSkriptバージョン、サーバー、プラグイン、登録順序、capability、および20個のdata fileが記録されます。
 
 生成される全ファイルについて、各フィールド、null・省略、値域、概念、バージョン差を確認するには、[スナップショットJSON形式リファレンス](docs/json-format.ja.md)を参照してください。
 
 ## Generatorの成果物
 
-2種類のadapterが、同じ20ファイルのスナップショット契約に従って出力します。
+2種類のadapterが、20個のdata fileと`Manifest.json`を含む同じ21ファイルのスナップショット契約に従って出力します。
 
 | Skript | 成果物 | 実行環境 |
 | --- | --- | --- |
@@ -17,11 +17,11 @@ LSPや各種ツールで利用するために、サーバー固有のSkript構�
 
 対応する成果物をサーバーの`plugins`ディレクトリに配置し、サーバーを起動して`/skgen`を実行してください。デフォルトでは、ファイルは`plugins/SkriptSyntaxGenerator`に出力されます。サーバー、Skript、導入addon、またはaddonの読み込み順序が変わった場合は、サーバースナップショットを再生成してください。
 
-どちらのadapterも常に同じファイルを出力します。古いSkriptバージョンで利用できない機能は、契約で定めた空のroot（`[]`、`Operations.json`では`{}`、`Aliases.json`、`Language.json`、`PluralRules.json`では文書化されたobject root）として出力され、利用可否は`Manifest.json.capabilities`に記録されます。
+どちらのadapterも常に同じファイルを出力します。古いSkriptバージョンで利用できない機能は、契約で定めた空のroot（`[]`、`Operations.json`では`{}`、`Aliases.json`、`BlockData.json`、`Language.json`、`PluralRules.json`では文書化されたobject root）として出力され、利用可否は各ファイルのstateまたは`Manifest.json.capabilities`に記録されます。
 
 ## Manifest capabilities
 
-`Manifest.json`はschema version 6を使用し、次の情報を記録します。
+`Manifest.json`はschema version 7を使用し、次の情報を記録します。
 
 - `syntaxApi`: `legacy-static`または`registry`
 - `eventValueApi`: `legacy`、`modern-2.15`、または`modern-2.16`
@@ -66,23 +66,31 @@ schema 6では実装classとliteral性を保持し、context依存の初期化�
 
 補助registryと関係データ:
 
-| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Language registry | Plural rules |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Language registry | Plural rules | Block data |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
+| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
+| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
+| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
 
 `Arithmetic`は、`Operators.json`、`Operations.json`、`Differences.json`を1つのcapabilityとして表します。 `Plural rules`は`PluralRules.json`を表し、対応する全Skript versionにbuilt-in変換tableがあります。addonがruntime overrideを先頭追加できるかは`pluralOverrideSupported`で判定します。Event valueはテスト済みの全バージョンで取得できますが、metadataの形状が異なります。2.6.4-2.14.3では`eventValueApi: legacy`、2.15.4と2.16.0では`modern-2.16`です。Skriptバージョンだけから推測せず、Manifestから実際に検出された形状を参照してください。
 
 Skript 2.6.4には列挙可能なStructure registryがありません。command、function、options、variables、aliases、eventのトップレベル構造は、`ScriptLoader`内の専用分岐で処理されます。このGeneratorは構文宣言を再構築するのではなく、登録された生データを保存するため、これらを`Structures.json`へ擬似的に追加しません。
+
+BlockDataはSkriptのversionだけでは決まりません。`BlockData.json.state`は、Minecraft 1.13以降では`collected`、1.12.2以前では`unsupported`、registryの検査に失敗した場合は`unresolved`です。
+
+| Minecraft runtime | `BlockData.json.state` | 意味 |
+| --- | --- | --- |
+| 1.13以降 | `collected` | Bukkit/BlockState registryからハードコードなしで取得。 |
+| 1.12.2以前 | `unsupported` | `org.bukkit.block.data.BlockData` APIが存在しない。 |
+| 検査失敗 | `unresolved` | APIは期待されるが、registryを安全に読めない。 |
 
 ## 互換性マトリクス
 

@@ -2,7 +2,7 @@
 
 English | [Japanese](json-format.ja.md)
 
-This document describes schema version `6`, the 20 files emitted by `/skgen`, and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API.
+This document describes the current schema version `7`, the 21 files emitted by `/skgen` (20 data files plus `Manifest.json`), and the Skript concepts represented by those files. It is written for consumers that do not already know Skript's Java API. The older schema 6 details below are retained where they explain a historical boundary.
 
 ## Reading the format
 
@@ -48,6 +48,7 @@ Consumers should read `Manifest.json` first. Do not infer support only from a Sk
 | `Sections.json` | array | Syntax inside executable code that owns an indented block. |
 | `Structures.json` | array | Top-level declarations and other configuration-node syntax. |
 | `Types.json` | array | Skript-visible value types and their Java representations. |
+| `BlockData.json` | object | Minecraft block IDs, their canonical default states, and runtime property values. |
 | `Functions.json` | array | Registered callable functions and their signatures. |
 | `Converters.json` | array | Allowed automatic conversions from one value type to another. |
 | `Comparators.json` | array | Rules for comparing two value types. |
@@ -61,7 +62,7 @@ Consumers should read `Manifest.json` first. Do not infer support only from a Sk
 | `Language.json` | object | Effective key/value entries loaded by Skript's global language registry. |
 | `PluralRules.json` | object | Effective English singular/plural conversion rules in runtime priority order. |
 
-Every file is always emitted. The empty root is `[]` for array files, `{}` for `Operations.json` and `Language.json`, `{"aliases":{},"targets":[]}` for `Aliases.json`, and `{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}` for `PluralRules.json`.
+Every file is always emitted. The empty root is `[]` for array files, `{}` for `Operations.json` and `Language.json`, `{"aliases":{},"targets":[]}` for `Aliases.json`, `{"state":"unsupported","complete":false,"blocks":{},"failures":[]}` for `BlockData.json`, and `{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}` for `PluralRules.json`.
 
 ## Shared objects
 
@@ -236,6 +237,55 @@ A structure is top-level/configuration syntax, such as a command or function dec
 `kind: "unknown"` is expected for addon-specific `EntryData` subclasses. The generator intentionally preserves their base fields without hard-coding every addon's private model.
 
 ## Registry files
+
+### `BlockData.json`
+
+`BlockData.json` is a runtime-derived description of Minecraft blocks. It is an object rather than an array because it describes one collection attempt and its outcome. The generator does not maintain a hardcoded block or property table: on Minecraft 1.13 and newer it enumerates the Bukkit/BlockState registry and asks Bukkit to create each block's canonical state.
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `state` | string enum | Required | `collected`, `unsupported`, or `unresolved`. This is the authoritative availability state for BlockData. |
+| `complete` | boolean | Required | `true` only when collection finished without failures. `false` also covers unsupported, unresolved, and partial collection. |
+| `registryProvider` | string | Required when `state` is `collected`; otherwise optional | Identifier of the runtime registry reader. The current value is `bukkit-runtime-registry`. It may be omitted when no registry can be read. This differs from the `provider` fields elsewhere in the snapshot, which contain an `AddonInfo` object. |
+| `blocks` | `object<string, BlockDataBlock>` | Required | Map keyed by sorted, namespaced block IDs such as `minecraft:chest`. Use `{}` when no block data was collected. |
+| `failures` | `array<BlockDataFailure>` | Required | Collection failures. An empty array means no failures were recorded. |
+
+`BlockDataBlock` has the following required fields:
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `defaultState` | string | Required | Canonical state string returned by the runtime for the block's default state, such as `minecraft:chest[facing=north]`. It is a state representation, not a list of allowed values. |
+| `properties` | `object<string, array<string>>` | Required | Each property name maps to its possible textual values. Property keys are sorted; each value array is sorted, duplicate-free, and contains only nonempty strings. `{}` is valid for a block with no exposed properties. |
+
+`BlockDataFailure` has `message` as a required string and `block` as an optional string. When `block` is present, the failure belongs to that namespaced block ID; when it is omitted, the failure is global to the collection attempt. A snapshot with `state: "collected"` and `complete: false` is a valid partial result: use the successfully collected `blocks` and surface `failures` instead of discarding the whole file.
+
+| Field | Type | Presence | Meaning |
+| --- | --- | --- | --- |
+| `block` | string | Optional | Namespaced block ID whose collection failed. Omitted for a collection-wide failure. |
+| `message` | string | Required | Human-readable reason for the failure. |
+
+Example:
+
+```json
+{
+  "state": "collected",
+  "complete": true,
+  "registryProvider": "bukkit-runtime-registry",
+  "blocks": {
+    "minecraft:chest": {
+      "defaultState": "minecraft:chest[facing=north]",
+      "properties": {
+        "facing": ["east", "north", "south", "west"]
+      }
+    }
+  },
+  "failures": []
+}
+```
+
+On Minecraft 1.13 and newer, collection is attempted from the live Bukkit/BlockState registry without a hardcoded list. On Minecraft 1.12.2 and older, the BlockData API does not exist and the file is `unsupported` with `complete: false`, empty `blocks`, and empty `failures`. If the API is expected but registry inspection or state creation fails, the file is `unresolved` and the failure explains why. The design follows the purpose of Skript 2.16's [`BlockUtils.java`](https://github.com/SkriptLang/Skript/blob/2.16.0/src/main/java/ch/njol/skript/util/BlockUtils.java) and [`Bukkit.createBlockData(String)`](https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Bukkit.html#createBlockData(java.lang.String)) path: let the server validate block-state syntax and provide the version-specific vocabulary.
+
+These `properties` are Minecraft BlockData state properties. They are unrelated to the Skript property system documented in `Properties.json`, which describes reusable capabilities such as obtaining a location from a value.
 
 ### `Types.json`
 
@@ -579,15 +629,15 @@ Skript sources: [`Language.java` in 2.6.4](https://github.com/SkriptLang/Skript/
 
 | Field | Type | Presence | Meaning |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | Required | Exact value `6` for this document. Reject or negotiate unknown major schema values. |
+| `schemaVersion` | int | Required | Exact value `7` for this document. Reject or negotiate unknown major schema values. |
 | `snapshotId` | sha256 | Required | Identity derived from schema, content, server, language, plugin list, capabilities, and file list. |
-| `contentDigest` | sha256 | Required | Digest of the 19 serialized data files, excluding the manifest. |
+| `contentDigest` | sha256 | Required | Digest of the 20 serialized data files, including `BlockData.json` and excluding the manifest. |
 | `generatedAt` | ISO-8601 string | Required | UTC `Instant` timestamp. It is not part of `snapshotId`. |
 | `server` | `ServerManifestData` | Required | Runtime server identity. |
 | `language` | string | Required | Active Skript language; legacy collection may use `unknown`. Language affects localized type nouns. |
 | `plugins` | `array<PluginManifestData>` | Required | Installed plugins in Bukkit load order. |
 | `capabilities` | `SnapshotCapabilitiesData` | Required | API shapes and supported registries. |
-| `files` | `array<string>` | Required | Sorted list of all 20 expected filenames, including `Manifest.json`. |
+| `files` | `array<string>` | Required | Sorted list of all 21 expected filenames: 20 data files plus `Manifest.json`. |
 
 `ServerManifestData` has required string fields `name`, `version`, `bukkitVersion`, `minecraftVersion`, and `javaVersion`.
 
@@ -620,6 +670,7 @@ The tested compatibility matrix is maintained in the main README. The important 
 | --- | --- |
 | Core conditions, effects, events, expressions, sections, types, functions, converters, comparators, event values | Collected in every tested version from 2.6.4 through 2.16.0. |
 | Structures | `Structures.json` is empty on 2.6.4 because there is no enumerable structure registry. Registrations appear from 2.7.x. Rich `entryValidator`/`nodeType` fields require the current adapter (2.14+). |
+| BlockData | `BlockData.json` is collected from the live Bukkit/BlockState registry on Minecraft 1.13+; 1.12.2 and older are `unsupported`. Registry/API inspection failures are `unresolved`, and individual block failures produce `state: "collected", complete: false`. |
 | Arithmetic registries | Empty on 2.6.4 and 2.7.3. The enumerable `Arithmetics` registry appears in 2.8.0; all three arithmetic files are collected from 2.8.x onward. |
 | Properties | `Properties.json` is empty before 2.13.0. |
 | Expression multiplicity/changers and implementation metadata | Legacy adapter keeps multiplicity/changer state unresolved and omits current implementation metadata. Current adapter resolves it where bytecode/instance inspection is safe. |
