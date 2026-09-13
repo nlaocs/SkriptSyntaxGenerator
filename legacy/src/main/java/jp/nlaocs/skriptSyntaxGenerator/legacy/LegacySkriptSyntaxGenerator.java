@@ -52,6 +52,13 @@ public final class LegacySkriptSyntaxGenerator extends JavaPlugin implements Com
                     getLogger().info("Automated legacy Skript syntax generation completed!");
                 } catch (Throwable throwable) {
                     getLogger().log(Level.SEVERE, "Automated legacy Skript syntax generation failed.", throwable);
+                    throwable.printStackTrace();
+                    System.err.flush();
+                    try {
+                        Thread.sleep(250L);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
                     Runtime.getRuntime().halt(1);
                 } finally {
                     Bukkit.shutdown();

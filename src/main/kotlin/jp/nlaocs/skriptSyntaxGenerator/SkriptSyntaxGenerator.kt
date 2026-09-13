@@ -49,6 +49,13 @@ class SkriptSyntaxGenerator : JavaPlugin() {
                 logger.info("Automated Skript syntax generation completed!")
             } catch (throwable: Throwable) {
                 logger.log(Level.SEVERE, "Automated Skript syntax generation failed.", throwable)
+                throwable.printStackTrace()
+                System.err.flush()
+                try {
+                    Thread.sleep(250L)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
                 Runtime.getRuntime().halt(1)
             } finally {
                 Bukkit.shutdown()
