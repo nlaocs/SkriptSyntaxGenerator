@@ -90,7 +90,7 @@ object SnapshotValidator {
 
         failIfAny(errors)
 
-        (requiredFiles - setOf("Manifest.json", "Operations.json", "Aliases.json", "Language.json", "PluralRules.json")).forEach { fileName ->
+        (requiredFiles - setOf("Manifest.json", "Operations.json", "Aliases.json", "BlockData.json", "Language.json", "PluralRules.json")).forEach { fileName ->
             expect(documents.getValue(fileName).isArray, errors) { "$fileName root must be an array" }
         }
         expect(documents.getValue("Operations.json").isObject, errors) {
@@ -98,6 +98,9 @@ object SnapshotValidator {
         }
         expect(documents.getValue("Aliases.json").isObject, errors) {
             "Aliases.json root must be an object"
+        }
+        expect(documents.getValue("BlockData.json").isObject, errors) {
+            "BlockData.json root must be an object"
         }
         expect(documents.getValue("PluralRules.json").isObject, errors) {
             "PluralRules.json root must be an object"
@@ -119,6 +122,7 @@ object SnapshotValidator {
                 val size = when (fileName) {
                     "Operations.json" -> flattenObjectArrays(document).size
                     "Aliases.json" -> document["aliases"]?.size() ?: 0
+                    "BlockData.json" -> document["blocks"]?.size() ?: 0
                     "PluralRules.json" -> document["rules"]?.size() ?: 0
                     else -> document.size()
                 }
@@ -172,6 +176,7 @@ object SnapshotValidator {
         }
         validatePluralRules(documents.getValue("PluralRules.json"), errors)
         validateAliases(documents.getValue("Aliases.json"), errors)
+        validateBlockData(documents.getValue("BlockData.json"), errors)
         validateLanguage(documents.getValue("Language.json"), errors)
         validateTypeReferences(documents, errors)
         validateEventValueReferences(documents, errors)
@@ -731,6 +736,70 @@ object SnapshotValidator {
         language.fields().forEachRemaining { (key, value) ->
             expect(key.isNotBlank(), errors) { "Language.json contains a blank key" }
             expect(value.isTextual, errors) { "Language.json[$key] must be a string" }
+        }
+    }
+
+    private fun validateBlockData(root: JsonNode, errors: MutableList<String>) {
+        val state = root["state"]?.takeIf(JsonNode::isTextual)?.asText()
+        expect(state in setOf("collected", "unsupported", "unresolved"), errors) {
+            "BlockData.json.state must be collected, unsupported, or unresolved"
+        }
+        expect(root["complete"]?.isBoolean == true, errors) {
+            "BlockData.json.complete must be boolean"
+        }
+        val blocks = root["blocks"]
+        val failures = root["failures"]
+        expect(blocks?.isObject == true, errors) { "BlockData.json.blocks must be an object" }
+        expect(failures?.isArray == true, errors) { "BlockData.json.failures must be an array" }
+
+        if (state == "collected") {
+            expect(
+                root["registryProvider"]?.isTextual == true &&
+                    root["registryProvider"].asText().isNotBlank(),
+                errors
+            ) {
+                "BlockData.json.registryProvider must identify the collected runtime registry"
+            }
+        }
+        if (state == "unsupported") {
+            expect(blocks?.isEmpty == true, errors) {
+                "Unsupported BlockData registries must not contain blocks"
+            }
+        }
+
+        val blockIds = mutableListOf<String>()
+        blocks?.fields()?.forEachRemaining { (blockId, block) ->
+            blockIds += blockId
+            expect(':' in blockId, errors) { "BlockData.json block ID must be namespaced: $blockId" }
+            expect(block["defaultState"]?.isTextual == true, errors) {
+                "BlockData.json.blocks[$blockId].defaultState must be a string"
+            }
+            val properties = block["properties"]
+            expect(properties?.isObject == true, errors) {
+                "BlockData.json.blocks[$blockId].properties must be an object"
+            }
+            properties?.fields()?.forEachRemaining { (property, values) ->
+                expect(property.isNotBlank(), errors) {
+                    "BlockData.json.blocks[$blockId] contains a blank property"
+                }
+                expect(values.isArray && values.size() > 0, errors) {
+                    "BlockData.json.blocks[$blockId].properties[$property] must be a non-empty array"
+                }
+                val names = values.takeIf(JsonNode::isArray)?.map(JsonNode::asText).orEmpty()
+                expect(names.all(String::isNotBlank), errors) {
+                    "BlockData.json.blocks[$blockId].properties[$property] contains a blank value"
+                }
+                expect(names == names.distinct().sorted(), errors) {
+                    "BlockData.json.blocks[$blockId].properties[$property] must be unique and sorted"
+                }
+            }
+        }
+        expect(blockIds == blockIds.sorted(), errors) { "BlockData.json blocks are not sorted" }
+
+        failures?.takeIf(JsonNode::isArray)?.forEachIndexed { index, failure ->
+            expect(failure["message"]?.isTextual == true && failure["message"].asText().isNotBlank(), errors) {
+                "BlockData.json.failures[$index].message must be a non-empty string"
+            }
         }
     }
 

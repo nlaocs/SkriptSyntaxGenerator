@@ -10,15 +10,16 @@ import java.util.Map;
 import java.util.Set;
 
 public final class SnapshotFormat {
-    public static final int SCHEMA_VERSION = 6;
+    public static final int SCHEMA_VERSION = 7;
     public static final String MANIFEST_FILE = "Manifest.json";
     public static final String ALIASES_FILE = "Aliases.json";
+    public static final String BLOCK_DATA_FILE = "BlockData.json";
     public static final String LANGUAGE_FILE = "Language.json";
     public static final String OPERATIONS_FILE = "Operations.json";
     public static final String PLURAL_RULES_FILE = "PluralRules.json";
 
     private static final List<String> DATA_FILES = Collections.unmodifiableList(Arrays.asList(
-        ALIASES_FILE, "ClassHierarchy.json", "Comparators.json", "Conditions.json", "Converters.json",
+        ALIASES_FILE, BLOCK_DATA_FILE, "ClassHierarchy.json", "Comparators.json", "Conditions.json", "Converters.json",
         "Differences.json", "Effects.json", "EventValues.json", "Events.json",
         "Expressions.json", "Functions.json", LANGUAGE_FILE, OPERATIONS_FILE, "Operators.json",
         PLURAL_RULES_FILE, "Properties.json", "Sections.json", "Structures.json", "Types.json"
@@ -66,6 +67,14 @@ public final class SnapshotFormat {
             aliases.put("aliases", Collections.emptyMap());
             aliases.put("targets", Collections.emptyList());
             return aliases;
+        }
+        if (BLOCK_DATA_FILE.equals(fileName)) {
+            Map<String, Object> blockData = new LinkedHashMap<String, Object>();
+            blockData.put("state", "unsupported");
+            blockData.put("complete", false);
+            blockData.put("blocks", Collections.emptyMap());
+            blockData.put("failures", Collections.emptyList());
+            return blockData;
         }
         if (LANGUAGE_FILE.equals(fileName)) {
             return Collections.emptyMap();
