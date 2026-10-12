@@ -62,6 +62,59 @@ class BlockDataReaderTest {
         }
     }
 
+    @Test
+    fun `reads obfuscated property names values and serialized enum values`() {
+        FakeBukkit.property = LegacyProperty()
+        try {
+            val data = BlockDataReader.read(FakeBukkit::class.java, FakeMaterial::class.java, FakeBlockData::class.java)
+            assertTrue(data.isComplete)
+            assertEquals(listOf("north", "south"), data.blocks.getValue("minecraft:chest").properties.getValue("facing"))
+            assertTrue(data.failures.isEmpty())
+        } finally {
+            FakeBukkit.property = null
+        }
+    }
+
+    @Test
+    fun `unknown property mappings and inconsistent default states remain failures`() {
+        for (property in listOf(Any(), MissingValuesProperty(), MissingSerializationProperty(), IncompleteProperty())) {
+            FakeBukkit.property = property
+            try {
+                val data = BlockDataReader.read(FakeBukkit::class.java, FakeMaterial::class.java, FakeBlockData::class.java)
+                assertEquals("collected", data.state)
+                assertFalse(data.isComplete)
+                assertEquals(setOf("minecraft:stone"), data.blocks.keys)
+                assertEquals("minecraft:chest", data.failures.single().block)
+                assertTrue(data.failures.single().message.isNotEmpty())
+            } finally {
+                FakeBukkit.property = null
+            }
+        }
+    }
+
+    private enum class Direction { NORTH, SOUTH }
+
+    private class LegacyProperty {
+        fun f(): String = "facing"
+        fun a(): Collection<Direction> = listOf(Direction.SOUTH, Direction.NORTH)
+        fun a(value: Direction): String = value.name.lowercase()
+    }
+
+    private class MissingValuesProperty {
+        fun getName(): String = "facing"
+    }
+
+    private class MissingSerializationProperty {
+        fun getName(): String = "facing"
+        fun getPossibleValues(): Collection<Direction> = listOf(Direction.NORTH)
+    }
+
+    private class IncompleteProperty {
+        fun getName(): String = "facing"
+        fun getPossibleValues(): Collection<String> = listOf("south")
+        fun getName(value: String): String = value
+    }
+
     private data class FakeKey(private val value: String) {
         override fun toString(): String = value
     }
@@ -75,13 +128,13 @@ class BlockDataReaderTest {
         fun getName(value: String): String = value
     }
 
-    private class FakeState(private val values: Map<FakeProperty, String>) {
-        fun getValues(): Map<FakeProperty, String> = values
+    private class FakeState(private val values: Map<Any, String>) {
+        fun getValues(): Map<Any, String> = values
     }
 
     private class FakeBlockData(private val id: String) {
         fun getState(): FakeState = if (id.endsWith("chest")) {
-            FakeState(mapOf(FakeProperty("facing", listOf("south", "north", "west", "east")) to "north"))
+            FakeState(mapOf((FakeBukkit.property ?: FakeProperty("facing", listOf("south", "north", "west", "east"))) to "north"))
         } else {
             FakeState(emptyMap())
         }
@@ -92,6 +145,7 @@ class BlockDataReaderTest {
     private class FakeBukkit {
         companion object {
             var failStone = false
+            var property: Any? = null
 
             @JvmStatic
             fun createBlockData(id: String): FakeBlockData {

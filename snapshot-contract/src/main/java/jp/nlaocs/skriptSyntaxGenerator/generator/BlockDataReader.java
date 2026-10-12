@@ -98,25 +98,55 @@ public final class BlockDataReader {
         Map<String, List<String>> properties = new LinkedHashMap<String, List<String>>();
         TreeMap<String, Object> sorted = new TreeMap<String, Object>();
         for (Object property : values.keySet()) {
-            Object name = invokeOrNull(property, "getName");
-            if (name != null) sorted.put(String.valueOf(name), property);
+            Object name = invokeFirst(property, "getName", "f");
+            if (!(name instanceof String) || ((String) name).isEmpty()) {
+                throw new IllegalStateException("Cannot read the name of BlockData property " + property.getClass().getName());
+            }
+            if (sorted.put((String) name, property) != null) {
+                throw new IllegalStateException("Duplicate BlockData property " + name);
+            }
         }
         for (Map.Entry<String, Object> entry : sorted.entrySet()) {
-            Object possibleValues = invokeFirst(entry.getValue(), "getPossibleValues", "getValues");
+            Object possibleValues = invokeFirst(entry.getValue(), "getPossibleValues", "getValues", "a");
             if (!(possibleValues instanceof Collection<?>)) {
                 throw new IllegalStateException("Cannot read values for BlockData property " + entry.getKey());
             }
             TreeSet<String> names = new TreeSet<String>();
             for (Object value : (Collection<?>) possibleValues) {
                 Object name = invokeOrNull(entry.getValue(), "getName", value);
-                names.add(name == null
-                    ? String.valueOf(value).toLowerCase(Locale.ROOT)
-                    : String.valueOf(name));
+                if (name == null) name = invokeOrNull(entry.getValue(), "a", value);
+                if (!(name instanceof String) || ((String) name).isEmpty()) {
+                    throw new IllegalStateException("Cannot serialize a value for BlockData property " + entry.getKey());
+                }
+                names.add((String) name);
             }
+            if (names.isEmpty()) throw new IllegalStateException("No values for BlockData property " + entry.getKey());
             properties.put(entry.getKey(), new ArrayList<String>(names));
         }
-        Object serialized = requireInvoke(blockData, "getAsString");
-        return new BlockDataBlockData(String.valueOf(serialized), properties);
+        String serialized = String.valueOf(requireInvoke(blockData, "getAsString"));
+        validateDefaultState(serialized, properties);
+        return new BlockDataBlockData(serialized, properties);
+    }
+
+    private static void validateDefaultState(String state, Map<String, List<String>> properties) {
+        int start = state.indexOf('[');
+        if (start >= 0 && !state.endsWith("]")) {
+            throw new IllegalStateException("Invalid default BlockData state " + state);
+        }
+        String body = start < 0 ? "" : state.substring(start + 1, state.length() - 1);
+        Map<String, String> defaults = new LinkedHashMap<String, String>();
+        if (!body.isEmpty()) {
+            for (String assignment : body.split(",", -1)) {
+                String[] parts = assignment.split("=", -1);
+                if (parts.length != 2 || defaults.put(parts[0], parts[1]) != null
+                    || !properties.containsKey(parts[0]) || !properties.get(parts[0]).contains(parts[1])) {
+                    throw new IllegalStateException("Default BlockData state is missing from property inventory: " + state);
+                }
+            }
+        }
+        if (defaults.size() != properties.size()) {
+            throw new IllegalStateException("Default BlockData state does not cover property inventory: " + state);
+        }
     }
 
     private static Map<?, ?> stateValues(Object state) {
