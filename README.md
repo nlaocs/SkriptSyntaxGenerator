@@ -2,13 +2,13 @@
 
 English | [日本語](README_JA.md)
 
-Generates a server-specific Skript syntax snapshot for LSP and tooling use. The snapshot records the active Skript version, server, plugins, registration order, capabilities, and 19 data files behind a stable schema.
+Generates a server-specific Skript syntax snapshot for LSP and tooling use. The snapshot records the active Skript version, server, plugins, registration order, capabilities, and 20 data files behind a stable schema.
 
 For a field-by-field description of every generated file, including nullability, value ranges, concepts, and version differences, see the [snapshot JSON format reference](docs/json-format.md).
 
 ## Generator artifacts
 
-Two adapters write the same 20-file snapshot contract:
+Two adapters write the same 21-file snapshot contract: 20 data files plus `Manifest.json`.
 
 | Skript | Artifact | Runtime |
 | --- | --- | --- |
@@ -17,19 +17,21 @@ Two adapters write the same 20-file snapshot contract:
 
 Place the matching artifact in the server's `plugins` directory, start the server, and run `/skgen`. Files are written to `plugins/SkriptSyntaxGenerator` by default. A server snapshot should be generated again whenever the server, Skript, installed addons, or addon load order changes.
 
-Both adapters always emit the same files. Features unavailable in an older Skript version use the contract's empty root (`[]`, `{}` for `Operations.json`, or the documented object roots for `Aliases.json`, `Language.json`, and `PluralRules.json`) and are described by `Manifest.json.capabilities`.
+Both adapters always emit the same files. Features unavailable in an older Skript version use the contract's empty root (`[]`, `{}` for `Operations.json`, or the documented object roots for `Aliases.json`, `BlockData.json`, `Language.json`, and `PluralRules.json`) and are described by the relevant file state or `Manifest.json.capabilities`.
 
 ## Manifest capabilities
 
-`Manifest.json` uses schema version 6 and records:
+`Manifest.json` uses schema version 7 and records:
 
 - `syntaxApi`: `legacy-static` or `registry`
 - `eventValueApi`: `legacy`, `modern-2.15`, or `modern-2.16`
 - `syntaxKinds`: availability of each collected registry
 - `aliases.supported` and `aliases.collected`
 
-Schema 6 replaces the former `Types.json.defaultExpressionClass` scalar with
-structured `defaultExpression` metadata. It records the implementation class
+`BlockData.json` has its own runtime state because BlockData availability depends on the Minecraft/Bukkit API, not only on the Skript version. Consumers should use that file's `state` and `complete` fields instead of inferring support from `syntaxKinds`.
+
+Schema 6 introduced, and schema 7 retains, the replacement of the former
+`Types.json.defaultExpressionClass` scalar with structured `defaultExpression` metadata. It records the implementation class
 and whether the implementation is a literal, plus `returnType` and `single`
 when those methods can be queried without parse context. Time-state and
 initialization checks remain parser/WASM responsibility.
@@ -68,21 +70,23 @@ initialization remains parser/WASM work.
 
 Supporting registries and relationships:
 
-| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Language registry | Plural rules |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes |
-| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Skript | Arithmetic | Converters | Comparators | Event values | Properties | Class hierarchy | Global aliases | Language registry | Plural rules | Block data |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2.6.4 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.7.3 | No | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.8.7 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.9.5 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.10.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.11.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.12.2 | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Runtime |
+| 2.13.2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
+| 2.14.3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
+| 2.15.4 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
+| 2.16.0 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Runtime |
 
 `Arithmetic` covers `Operators.json`, `Operations.json`, and `Differences.json` as one capability. `Plural rules` covers `PluralRules.json`; every supported Skript version has a built-in conversion table, while `pluralOverrideSupported` records whether addons can prepend runtime overrides. Event values are available for every tested version, but their metadata shape changes: 2.6.4-2.14.3 use `eventValueApi: legacy`, while 2.15.4 and 2.16.0 expose the `modern-2.16` shape. The exact detected shape must be read from the Manifest instead of inferred only from the Skript version.
+
+`Block data` is runtime-dependent: Minecraft 1.13 and newer can report `collected` when the Bukkit/BlockState registry is readable; Minecraft 1.12.2 and older report `unsupported`; a registry/API inspection failure reports `unresolved`. The table's `Runtime` value intentionally avoids pretending that this is a Skript-only capability.
 
 Skript 2.6.4 has no enumerable Structure registry. Its command, function, options, variables, aliases, and event top-level constructs are handled by dedicated `ScriptLoader` branches. They are not synthesized into `Structures.json`, because this generator preserves registered raw data instead of reconstructing syntax declarations.
 
@@ -102,6 +106,14 @@ The integration suite currently covers these boundaries:
 | 2.14.3-2.16.0 | 1.21.11 | 21 | current API |
 | 2.15.4 | 26.1.2 | 25 | experimental current API |
 | 2.16.0 | 26.2 | 25 | experimental current API |
+
+BlockData compatibility is determined by the Minecraft runtime:
+
+| Minecraft runtime | `BlockData.json.state` | Meaning |
+| --- | --- | --- |
+| 1.13+ | `collected` | Read from the runtime Bukkit/BlockState registry without a hardcoded block list. |
+| 1.12.2 and older | `unsupported` | The `org.bukkit.block.data.BlockData` API is unavailable. |
+| Any version with an inspection failure | `unresolved` | The API exists or was expected, but the registry could not be read safely. |
 
 The `2.6.4 + Minecraft 1.12.2 + Java 8` profile is a required compatibility test, not an inferred target.
 

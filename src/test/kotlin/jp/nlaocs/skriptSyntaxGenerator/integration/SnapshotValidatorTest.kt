@@ -28,7 +28,7 @@ class SnapshotValidatorTest {
 
         val report = SnapshotValidator.validate(tempDirectory)
 
-        assertEquals(20, report.files)
+        assertEquals(21, report.files)
         assertEquals(0, report.aliases)
         assertEquals(0, report.registrations)
     }
@@ -239,6 +239,8 @@ class SnapshotValidatorTest {
             when (fileName) {
                 SnapshotFormat.OPERATIONS_FILE -> "{}"
                 SnapshotFormat.ALIASES_FILE -> "{\"aliases\":{},\"targets\":[]}"
+                SnapshotFormat.BLOCK_DATA_FILE ->
+                    "{\"state\":\"unsupported\",\"complete\":false,\"blocks\":{},\"failures\":[]}"
                 SnapshotFormat.PLURAL_RULES_FILE ->
                     """{"algorithm":"singular-aware","pluralOverrideSupported":true,"rules":[{"ruleOrder":0,"singular":"","plural":"s","completeWord":false,"origin":"built-in","addon":{"name":"Skript","version":"2.14.3"}}]}"""
                 SnapshotFormat.LANGUAGE_FILE -> "{}"

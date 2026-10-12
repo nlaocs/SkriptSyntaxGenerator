@@ -137,6 +137,14 @@ data class IntegrationProfile(
                 "Comparators.json",
                 "EventValues.json"
             )
+            val minecraftParts = minecraft.split('.').mapNotNull(String::toIntOrNull)
+            if (
+                minecraftParts.firstOrNull()?.let { major ->
+                    major > 1 || (major == 1 && (minecraftParts.getOrNull(1) ?: 0) >= 13)
+                } == true
+            ) {
+                files += "BlockData.json"
+            }
             val minor = skript.split(".").getOrNull(1)?.toIntOrNull() ?: return files
             if (minor >= 7) files += "Structures.json"
             if (minor >= 8) {

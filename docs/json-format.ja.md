@@ -2,7 +2,7 @@
 
 [English](json-format.md) | 日本語
 
-この文書は、`/skgen` が出力するschema version `6`の20ファイルと、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。
+この文書は、`/skgen`が出力するschema version `7`の21ファイル（20個のdata fileと`Manifest.json`）と、各ファイルが表すSkriptの概念を説明します。SkriptのJava APIを知らなくても生成物を利用できることを目的としています。schema 6の説明は、version境界を理解するための履歴として残しています。
 
 ## 形式の読み方
 
@@ -48,6 +48,7 @@ generatorはJacksonの`NON_NULL`設定でDTOを直列化します。後述する
 | `Sections.json` | array | 実行コード内でインデントされたblockを持つ構文。 |
 | `Structures.json` | array | top-level宣言やconfig nodeとして解析される構文。 |
 | `Types.json` | array | Skript上の値型と対応するJava class。 |
+| `BlockData.json` | object | Minecraftのblock ID、canonicalなdefault state、runtime property値。 |
 | `Functions.json` | array | 登録済みfunctionとsignature。 |
 | `Converters.json` | array | ある値型から別の値型への自動変換規則。 |
 | `Comparators.json` | array | 2つの値型を比較する規則。 |
@@ -61,7 +62,11 @@ generatorはJacksonの`NON_NULL`設定でDTOを直列化します。後述する
 | `Language.json` | object | Skriptのglobal language registryにロードされた実効key/value。 |
 | `PluralRules.json` | object | runtime優先順に並んだ英語の単数形・複数形変換rule。 |
 
-全ファイルが常に出力されます。空rootは、配列ファイルが`[]`、`Operations.json`と`Language.json`が`{}`、`Aliases.json`が`{"aliases":{},"targets":[]}`、`PluralRules.json`が`{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}`です。
+全21ファイルが常に出力されます。schema 7の空rootは、配列ファイルが`[]`、`Operations.json`と`Language.json`が`{}`、`Aliases.json`が`{"aliases":{},"targets":[]}`、`BlockData.json`が`{"state":"unsupported","complete":false,"blocks":{},"failures":[]}`、`PluralRules.json`が`{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}`です。
+
+## schema 7の空root
+
+全21ファイルは常に出力されます。array rootの空値は`[]`、`Operations.json`と`Language.json`は`{}`、`Aliases.json`は`{"aliases":{},"targets":[]}`、`PluralRules.json`は`{"algorithm":"unresolved","pluralOverrideSupported":false,"rules":[]}`です。`BlockData.json`の空rootは`{"state":"unsupported","complete":false,"blocks":{},"failures":[]}`です。必須fieldの空array・空objectは「空であること」が意味を持つため、省略と同一視しないでください。
 
 ## 共通object
 
@@ -232,6 +237,61 @@ structureはtop-level/configuration syntaxです。該当versionではcommandや
 addon独自の`EntryData` subclassは`kind: "unknown"`になり得ます。generatorは各addonのprivate modelをハードコードせず、共通fieldを保持する方針です。
 
 ## Registryファイル
+
+### `BlockData.json`
+
+`BlockData.json`はMinecraftのblockをruntimeから取得した結果です。1回の収集処理の状態を表すため、rootはarrayではなくobjectです。block一覧やproperty一覧をgenerator側にハードコードせず、Minecraft 1.13以降のBukkit/BlockState registryを列挙して、各blockについてBukkitのcanonical stateを取得します。
+
+| Field | Type | Presence | 説明 |
+| --- | --- | --- | --- |
+| `state` | string enum | 必須 | `collected`、`unsupported`、`unresolved`のいずれか。BlockDataの利用可能状態を表す正規のfieldです。 |
+| `complete` | boolean | 必須 | 失敗なく収集できた場合だけ`true`です。unsupported、unresolved、partial collectionでは`false`です。 |
+| `registryProvider` | string | `collected`では必須、それ以外は任意 | runtime registry readerの識別子です。現在は`bukkit-runtime-registry`です。registryを読めない場合は省略できます。snapshot内の他の`provider` fieldは`AddonInfo` objectであり、このfieldとは意味が異なります。 |
+| `blocks` | `object<string, BlockDataBlock>` | 必須 | namespaced block IDをkeyにしたmapです。keyはsort済みです。データがない場合は`{}`です。 |
+| `failures` | `array<BlockDataFailure>` | 必須 | 収集中に発生した失敗です。記録がなければ`[]`です。 |
+
+`BlockDataBlock`のfieldはすべて必須です。
+
+| Field | Type | Presence | 説明 |
+| --- | --- | --- | --- |
+| `defaultState` | string | 必須 | runtimeが返したblockのdefault stateのcanonical文字列表現です。例は`minecraft:chest[facing=north]`です。許可値一覧そのものではありません。 |
+| `properties` | `object<string, array<string>>` | 必須 | property名から、そのpropertyが取り得る文字列表現へのmapです。property keyはsort済み、各arrayはsort済みかつ重複なしで、空文字を含みません。propertyがないblockでは`{}`です。 |
+
+`BlockDataFailure`は`message`（必須string）と`block`（任意string）を持ちます。`block`がある場合はそのnamespaced block IDに関する失敗で、省略時は収集処理全体に関する失敗です。`state: "collected"`かつ`complete: false`は有効なpartial resultなので、成功した`blocks`を利用しながら`failures`も表示してください。
+
+| Field | Type | Presence | 説明 |
+| --- | --- | --- | --- |
+| `block` | string | 任意 | 収集に失敗したnamespaced block IDです。全体の失敗では省略されます。 |
+| `message` | string | 必須 | 失敗理由を表す人間向けのmessageです。 |
+
+```json
+{
+  "state": "collected",
+  "complete": true,
+  "registryProvider": "bukkit-runtime-registry",
+  "blocks": {
+    "minecraft:chest": {
+      "defaultState": "minecraft:chest[facing=north]",
+      "properties": {
+        "facing": ["east", "north", "south", "west"]
+      }
+    }
+  },
+  "failures": []
+}
+```
+
+Minecraft 1.13以降では、実行中のBukkit/BlockState registryからハードコードなしで収集します。1.12.2以前は`org.bukkit.block.data.BlockData` APIがないため、`state: "unsupported"`、`complete: false`、`blocks: {}`、`failures: []`になります。APIが存在するはずなのにregistryの検査やstate作成に失敗した場合は`unresolved`になり、理由が`failures`に入ります。これはSkript 2.16の[`BlockUtils.java`](https://github.com/SkriptLang/Skript/blob/2.16.0/src/main/java/ch/njol/skript/util/BlockUtils.java)と[`Bukkit.createBlockData(String)`](https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Bukkit.html#createBlockData(java.lang.String))の経路と同じ目的で、server自身にversionごとのblock stateの妥当性と語彙を判断させるための設計です。
+
+ここでいう`properties`はMinecraft BlockDataのstate propertyです。`Properties.json`が表すSkriptのproperty system（値からlocationを取得するなどの再利用可能な能力）とは別の概念です。
+
+| Minecraft runtime | `BlockData.json.state` | 意味 |
+| --- | --- | --- |
+| 1.13以降 | `collected` | Bukkit/BlockState registryからblockとpropertyをハードコードなしで収集します。 |
+| 1.12.2以前 | `unsupported` | `org.bukkit.block.data.BlockData` APIが存在しません。 |
+| registry検査の失敗 | `unresolved` | APIは期待されますが、安全にregistryを読めません。 |
+
+`collected`でも個別blockの失敗があれば`complete: false`になります。成功したblockは`blocks`に残り、失敗は`failures`に記録されます。
 
 ### `Types.json`
 
@@ -573,15 +633,17 @@ Skript source: [2.6.4の`Language.java`](https://github.com/SkriptLang/Skript/bl
 
 | フィールド | 型 | 有無 | 意味 |
 | --- | --- | --- | --- |
-| `schemaVersion` | int | 必須 | この文書ではexact `6`。未知のmajor schemaは拒否または別処理する。 |
+| `schemaVersion` | int | 必須 | schema 7ではexact `7`。未知のmajor schemaは拒否または別処理する。 |
 | `snapshotId` | sha256 | 必須 | schema、content、server、language、plugin list、capability、file list由来のidentity。 |
-| `contentDigest` | sha256 | 必須 | Manifestを除く19 data fileのserialized content digest。 |
+| `contentDigest` | sha256 | 必須 | `Manifest.json`を除く20個のdata fileのserialized content digestです。`BlockData.json`も含みます。 |
 | `generatedAt` | ISO-8601 string | 必須 | UTC `Instant`。`snapshotId`には含まれない。 |
 | `server` | `ServerManifestData` | 必須 | 実行server identity。 |
 | `language` | string | 必須 | active Skript language。legacyで取得不能なら`unknown`。type nounにも影響する。 |
 | `plugins` | `array<PluginManifestData>` | 必須 | Bukkit load orderのplugin一覧。 |
-| `capabilities` | `SnapshotCapabilitiesData` | 必須 | API shapeと対応registry。 |
-| `files` | `array<string>` | 必須 | `Manifest.json`を含む20ファイル名のsort済み一覧。 |
+| `capabilities` | `SnapshotCapabilitiesData` | 必須 | API shapeと対応registry。BlockDataの状態は`BlockData.json`自身を参照する。 |
+| `files` | `array<string>` | 必須 | `Manifest.json`を含む21ファイル名（20 data fileとManifest）のsort済み一覧。 |
+
+schema 7では、`files`の件数は常に21、`contentDigest`の対象は常に20です。Manifest自身はdigestの対象外ですが、`BlockData.json`は対象に含まれます。
 
 `ServerManifestData`は必須stringの`name`、`version`、`bukkitVersion`、`minecraftVersion`、`javaVersion`を持ちます。
 
