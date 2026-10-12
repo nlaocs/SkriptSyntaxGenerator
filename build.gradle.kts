@@ -66,6 +66,7 @@ tasks {
     }
 
     shadowJar {
+        manifest.attributes["Multi-Release"] = "true"
         relocate("com.fasterxml.jackson", "jp.nlaocs.skriptSyntaxGenerator.libs.jackson")
     }
 }
@@ -81,6 +82,22 @@ tasks.build {
 }
 
 tasks.test {
+    dependsOn(tasks.shadowJar)
+    systemProperty("ssg.shadowJar", tasks.shadowJar.flatMap { it.archiveFile }.get().asFile.absolutePath)
+    useJUnitPlatform()
+}
+
+tasks.register<Test>("testJava25Packaging") {
+    group = "verification"
+    description = "Checks the shaded registration hooks on Java 25 without workaround properties."
+    dependsOn(tasks.testClasses, tasks.shadowJar)
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    })
+    systemProperty("ssg.shadowJar", tasks.shadowJar.flatMap { it.archiveFile }.get().asFile.absolutePath)
+    filter { includeTestsMatching("jp.nlaocs.skriptSyntaxGenerator.packaging.ShadowJarPackagingTest") }
     useJUnitPlatform()
 }
 
@@ -219,13 +236,13 @@ val integrationProfiles = listOf(
         "minecraft-26.1.2", "Minecraft2612", "26.1.2", "2.15.4", 25,
         GeneratorAdapter.MODERN, "registry", "modern-2.16", 25614,
         status = "experimental",
-        blocker = "Paper 26 plugin isolation prevents complete registration hook capture."
+        blocker = "Complete Java 25 integration snapshot validation is still pending."
     ),
     IntegrationProfile(
         "minecraft-26.2", "Minecraft262", "26.2", "2.16.0", 25,
         GeneratorAdapter.MODERN, "registry", "modern-2.16", 25615,
         status = "experimental",
-        blocker = "Paper 26 plugin isolation prevents complete registration hook capture."
+        blocker = "Complete Java 25 integration snapshot validation is still pending."
     ),
     IntegrationProfile(
         "legacy-1.8.8", "Legacy188", "1.8.8", "final-for-1.8", 8,

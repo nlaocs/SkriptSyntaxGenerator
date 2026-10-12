@@ -117,7 +117,7 @@ BlockData compatibility is determined by the Minecraft runtime:
 
 The `2.6.4 + Minecraft 1.12.2 + Java 8` profile is a required compatibility test, not an inferred target.
 
-Minecraft 1.16.5, 1.17.1, 1.18.2, 26.1.2, and 26.2 are representative patch releases selected from [Skript's bStats Minecraft Version chart](https://bstats.org/plugin/bukkit/Skript/722). The chart changes over time; these profiles cover the currently significant version families without replacing the Skript API boundary profiles. Paper 26 currently prevents complete registration-hook capture through plugin class-loader isolation, so its profiles remain available as explicit experimental tasks but are excluded from `integrationTest`. The interactive `runServer` task uses Skript 2.15.4 on Paper 1.21.11.
+Minecraft 1.16.5, 1.17.1, 1.18.2, 26.1.2, and 26.2 are representative patch releases selected from [Skript's bStats Minecraft Version chart](https://bstats.org/plugin/bukkit/Skript/722). The chart changes over time; these profiles cover the currently significant version families without replacing the Skript API boundary profiles. The Paper 26 profiles remain explicit experimental tasks pending complete integration snapshot validation and are excluded from `integrationTest`. The interactive `runServer` task uses Skript 2.15.4 on Paper 1.21.11.
 
 Print the matrix:
 
@@ -130,6 +130,14 @@ Run unit tests:
 ```powershell
 .\gradlew.bat test
 ```
+
+The modern shaded JAR preserves multi-release dependency classes so Byte Buddy's JDK bridge remains available on Java 25. Unit tests inspect the packaged JAR and generate the actual converter Advice from its isolated dependencies. Run the same packaging regression on Java 25 without Byte Buddy workaround properties:
+
+```powershell
+.\gradlew.bat testJava25Packaging
+```
+
+This focused check does not replace the full server integration matrix. Registration-hook capture covers direct converter registrations; derived chained converters in Skript's effective registry are compared separately.
 
 Run the complete integration matrix with:
 
