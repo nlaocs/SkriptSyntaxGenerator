@@ -211,6 +211,7 @@ This is a restricted dependency analysis, not a JVM emulator. Its safety boundar
 | Operations | Supported proof / unknown boundary |
 | --- | --- |
 | Constants, local/stack operations, casts and forward branches | Track only modeled identities/integers. Unknown branch outcomes are explored conservatively; loops, switches, unsupported operations and exception handlers invalidate evidence. |
+| LDC and dynamic execution | Ordinary String/numeric/class/MethodType/MethodHandle constant kinds retain their modeled behavior. ConstantDynamic (including nested bootstrap arguments) and unknown future LDC operand kinds invalidate the whole method without running a bootstrap. Invokedynamic is unsupported. An unsafe getter is rejected before applying the four-instruction delegation shape, as are unsafe init/helpers. Subsequent unproven calls through a loaded handle remain unsupported. |
 | Expression-array reads | Only a known init input array and constant index establish a Capture identity. |
 | Instance fields | The canonical source field on proven This may be updated. Unknown-receiver writes and input/self aliases stored in other fields invalidate evidence. Untracked reads do not become proven This. |
 | Active class uses | `GETSTATIC` and `NEW` always invalidate evidence, including when a field result looks unused. `<clinit>` is never executed. `PUTSTATIC` and array stores are unsupported. |

@@ -11,6 +11,44 @@ import jp.nlaocs.skriptSyntaxGenerator.serializer.JacksonFactory
 
 class ExpressionCardinalitySourceAnalyzerTest {
     @Test
+    fun `dynamic LDC rejects metadata without executing its bootstrap`() {
+        val instance = CardinalitySourceFixtures.dynamicLiteralFixture(false)
+        CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls = 0
+        assertNull(ExpressionCardinalitySourceAnalyzer.analyze(instance.javaClass))
+        assertEquals(0, CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls)
+        val input = CardinalitySourceFixtures.Single()
+        assertTrue(instance.init(arrayOf<Expression<*>>(input), 0, Kleenean.FALSE, null))
+        assertTrue(input.isSingle)
+        assertFalse(instance.isSingle)
+        assertEquals(1, CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls)
+    }
+
+    @Test
+    fun `unsafe getter callbacks cannot hide behind the four modeled getter instructions`() {
+        val instance = CardinalitySourceFixtures.dynamicLiteralFixture(true)
+        CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls = 0
+        assertNull(ExpressionCardinalitySourceAnalyzer.analyze(instance.javaClass))
+        assertEquals(0, CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls)
+        val input = CardinalitySourceFixtures.Single()
+        assertTrue(instance.init(arrayOf<Expression<*>>(input), 0, Kleenean.FALSE, null))
+        assertEquals(0, CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls)
+        assertTrue(input.isSingle)
+        assertFalse(instance.isSingle)
+        assertEquals(1, CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls)
+    }
+
+    @Test
+    fun `ordinary string integer and class constants preserve the input source`() {
+        val instance = CardinalitySourceFixtures.DynamicLiteralFixture()
+        CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls = 0
+        assertEquals(0, ExpressionCardinalitySourceAnalyzer.analyze(instance.javaClass)?.expressionIndex)
+        assertEquals(0, CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls)
+        assertTrue(instance.init(arrayOf<Expression<*>>(CardinalitySourceFixtures.Single()), 0, Kleenean.FALSE, null))
+        assertTrue(instance.isSingle)
+        assertEquals(0, CardinalitySourceFixtures.DynamicCarrier.bootstrapCalls)
+    }
+
+    @Test
     fun `static field reads cannot hide a class initializer mutation`() {
         val instance = CardinalitySourceFixtures.InitGlobalRead()
         assertEquals(0, CardinalitySourceFixtures.StaticCarrier.initialized)

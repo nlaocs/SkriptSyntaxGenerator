@@ -30,6 +30,9 @@ object ExpressionCardinalitySourceAnalyzer {
 
     fun analyze(type: Class<*>): Source? = runCatching {
         val single = find(type, "isSingle", "()Z") ?: return null
+        // Unsupported callbacks can leave the modeled instruction list looking pure.
+        // Getter shape is never sufficient when its visitor marked any operation unsafe.
+        if (single.unsafe) return null
         val code = single.code.filter { it.op >= 0 }
         if (code.size != 4 || code[0] != Insn(Opcodes.ALOAD, number = 0) ||
             code[1].op != Opcodes.GETFIELD || code[2].op !in setOf(Opcodes.INVOKEINTERFACE, Opcodes.INVOKEVIRTUAL) ||
@@ -304,7 +307,15 @@ object ExpressionCardinalitySourceAnalyzer {
                         override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) { code.add(Insn(opcode, owner = owner, name = name, desc = descriptor)) }
                         override fun visitJumpInsn(opcode: Int, label: Label) { code.add(Insn(opcode, label = label)) }
                         override fun visitLabel(label: Label) { code.add(Insn(-1, label = label)) }
-                        override fun visitLdcInsn(value: Any) { code.add(if (value is Int) Insn(Opcodes.BIPUSH, number = value) else Insn(Opcodes.LDC)) }
+                        override fun visitLdcInsn(value: Any) {
+                            when (value) {
+                                is net.bytebuddy.jar.asm.ConstantDynamic -> unsafe = true
+                                is Int -> { code.add(Insn(Opcodes.BIPUSH, number = value)); return }
+                                is String, is Float, is Long, is Double, is Type, is net.bytebuddy.jar.asm.Handle -> {}
+                                else -> unsafe = true
+                            }
+                            code.add(Insn(Opcodes.LDC))
+                        }
                         override fun visitIincInsn(variable: Int, increment: Int) { unsafe = true }
                         override fun visitInvokeDynamicInsn(name: String, descriptor: String, handle: net.bytebuddy.jar.asm.Handle, vararg args: Any) { unsafe = true }
                         override fun visitTableSwitchInsn(min: Int, max: Int, dflt: Label, vararg labels: Label) { unsafe = true }

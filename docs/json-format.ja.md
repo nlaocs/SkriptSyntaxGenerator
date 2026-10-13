@@ -211,6 +211,7 @@ constructor と heap はモデル化しません。未追跡の参照は express
 | 操作 | 対応する根拠／不明に落とす境界 |
 | --- | --- |
 | 定数・local/stack・cast・前方分岐 | モデル化した identity と整数だけを追跡。不明な分岐は両方を探索し、loop・switch・未対応命令・exception handler は根拠を無効化。 |
+| LDC と動的実行 | 通常の String／数値／class／MethodType／MethodHandle 定数は既存のモデル化した動作を保持。ConstantDynamic（入れ子 bootstrap 引数を含む）と将来の不明な LDC operand は bootstrap を実行せず method 全体を無効化。Invokedynamic は未対応。getter も unsafe flag を確認してから4命令の委譲形を判定し、init／helper と同じく未対応命令を通さない。読み込んだ handle を通す未証明の呼出しも未対応。 |
 | Expression array の読出し | 既知の init 入力配列と定数 index の場合だけ Capture identity を認定。 |
 | instance field | This と確認できた canonical source field は更新可能。不明 receiver の書込み、別 field への入力／自己 alias 保存は根拠を無効化。未追跡の読出しを This と推測しない。 |
 | class の active use | `GETSTATIC` と `NEW` は結果が未使用でも常に根拠を無効化。`<clinit>` は実行しない。`PUTSTATIC` と array store も未対応。 |

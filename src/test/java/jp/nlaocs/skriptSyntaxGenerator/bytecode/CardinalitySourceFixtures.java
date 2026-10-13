@@ -7,6 +7,68 @@ import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
 
 public final class CardinalitySourceFixtures {
+    public static class DynamicCarrier {
+        public static Direct current;
+        public static int bootstrapCalls;
+    }
+    public static class DynamicLiteralFixture extends Direct {
+        public DynamicLiteralFixture() { DynamicCarrier.current = this; }
+        @Override public boolean init(Expression<?>[] inputs, int pattern, Kleenean delayed, ParseResult result) {
+            source = inputs[0];
+            Object ignored = "ordinary-trigger";
+            int number = 1000000;
+            Class<?> type = Single.class;
+            return true;
+        }
+        @Override public boolean isSingle() { return source.isSingle(); }
+    }
+    public static Object constantBootstrap(java.lang.invoke.MethodHandles.Lookup lookup, String name, Class<?> type) {
+        DynamicCarrier.bootstrapCalls++;
+        DynamicCarrier.current.source = new OneToMany();
+        return new Object();
+    }
+    public static java.lang.invoke.CallSite invocationBootstrap(java.lang.invoke.MethodHandles.Lookup lookup, String name, java.lang.invoke.MethodType type) {
+        DynamicCarrier.bootstrapCalls++;
+        DynamicCarrier.current.source = new OneToMany();
+        return new java.lang.invoke.ConstantCallSite(java.lang.invoke.MethodHandles.empty(type));
+    }
+    public static Direct dynamicLiteralFixture(boolean getterInvocation) throws Exception {
+        String name = DynamicLiteralFixture.class.getName();
+        String resource = name.replace('.', '/') + ".class";
+        byte[] original;
+        try (java.io.InputStream input = CardinalitySourceFixtures.class.getClassLoader().getResourceAsStream(resource)) {
+            original = input.readAllBytes();
+        }
+        net.bytebuddy.jar.asm.ClassWriter writer = new net.bytebuddy.jar.asm.ClassWriter(0);
+        String owner = CardinalitySourceFixtures.class.getName().replace('.', '/');
+        new net.bytebuddy.jar.asm.ClassReader(original).accept(new net.bytebuddy.jar.asm.ClassVisitor(net.bytebuddy.jar.asm.Opcodes.ASM9, writer) {
+            @Override public net.bytebuddy.jar.asm.MethodVisitor visitMethod(int access, String method, String descriptor, String signature, String[] exceptions) {
+                return new net.bytebuddy.jar.asm.MethodVisitor(net.bytebuddy.jar.asm.Opcodes.ASM9, super.visitMethod(access, method, descriptor, signature, exceptions)) {
+                    @Override public void visitCode() {
+                        super.visitCode();
+                        if (getterInvocation && method.equals("isSingle")) super.visitInvokeDynamicInsn("mutate", "()V", new net.bytebuddy.jar.asm.Handle(
+                            net.bytebuddy.jar.asm.Opcodes.H_INVOKESTATIC, owner, "invocationBootstrap",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false));
+                    }
+                    @Override public void visitLdcInsn(Object value) {
+                        if (!getterInvocation && method.equals("init") && "ordinary-trigger".equals(value)) value = new net.bytebuddy.jar.asm.ConstantDynamic(
+                            "mutate", "Ljava/lang/Object;", new net.bytebuddy.jar.asm.Handle(net.bytebuddy.jar.asm.Opcodes.H_INVOKESTATIC, owner, "constantBootstrap",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/Object;", false));
+                        super.visitLdcInsn(value);
+                    }
+                };
+            }
+        }, 0);
+        byte[] changed = writer.toByteArray();
+        Class<?> type = new ClassLoader(CardinalitySourceFixtures.class.getClassLoader()) {
+            Class<?> fixture() { return defineClass(name, changed, 0, changed.length); }
+            @Override public java.io.InputStream getResourceAsStream(String path) {
+                return path.equals(resource) ? new java.io.ByteArrayInputStream(changed) : super.getResourceAsStream(path);
+            }
+        }.fixture();
+        return (Direct) type.getConstructor().newInstance();
+    }
+
     public static class StaticCarrier {
         public static Direct current;
         public static int initialized;
