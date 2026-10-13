@@ -76,5 +76,18 @@ public final class CardinalitySourceFixtures {
             return true;
         }
     }
+
+    public static class AliasedEscape extends Direct {
+        private Expression<?> alias;
+        @Override public boolean init(Expression<?>[] inputs, int pattern, Kleenean delayed, ParseResult result) {
+            source = inputs[0];
+            alias = source;
+            mutate(alias);
+            return true;
+        }
+        private static void mutate(Expression<?> value) {
+            if (value instanceof Direct) ((Direct) value).source = new OneToMany();
+        }
+    }
 }
 

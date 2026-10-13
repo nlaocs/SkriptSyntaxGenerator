@@ -8,6 +8,11 @@ import jp.nlaocs.skriptSyntaxGenerator.serializer.JacksonFactory
 
 class ExpressionCardinalitySourceAnalyzerTest {
     @Test
+    fun `does not lose an input escape through an untracked field alias`() {
+        assertNull(ExpressionCardinalitySourceAnalyzer.analyze(CardinalitySourceFixtures.AliasedEscape::class.java))
+    }
+
+    @Test
     fun `records the input index without calling expression methods`() {
         val source = ExpressionCardinalitySourceAnalyzer.analyze(CardinalitySourceFixtures.Direct::class.java)!!
         assertEquals(1, source.expressionIndex)

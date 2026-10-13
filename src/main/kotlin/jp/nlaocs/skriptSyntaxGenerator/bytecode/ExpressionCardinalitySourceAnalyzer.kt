@@ -133,7 +133,9 @@ object ExpressionCardinalitySourceAnalyzer {
                     Opcodes.PUTFIELD -> {
                         val value = pop(); val receiver = pop()
                         if (receiver == Value.This && canonicalField(root, i) == field) frame.source = value
-                        else if (receiver != Value.This && (value == Value.This || value is Value.Capture)) return null
+                        else if (value == Value.This || value is Value.Capture || value == Value.ArrayInput) return null
+                        // Other fields are not tracked: storing an input/self alias there could
+                        // hide a later mutation behind a GETFIELD that becomes Unknown.
                     }
                     Opcodes.PUTSTATIC, Opcodes.AASTORE -> return null // possible input/self escape
                     Opcodes.IFNULL, Opcodes.IFNONNULL -> {
