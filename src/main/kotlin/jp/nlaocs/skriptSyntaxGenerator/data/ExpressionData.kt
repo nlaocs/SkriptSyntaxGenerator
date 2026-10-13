@@ -6,6 +6,7 @@ import ch.njol.skript.expressions.base.SectionExpression
 import ch.njol.skript.registrations.Classes
 import com.fasterxml.jackson.annotation.JsonValue
 import jp.nlaocs.skriptSyntaxGenerator.bytecode.ExpressionBytecodeAnalyzer
+import jp.nlaocs.skriptSyntaxGenerator.bytecode.ExpressionCardinalitySourceAnalyzer
 import jp.nlaocs.skriptSyntaxGenerator.data.common.CommonSyntaxData
 import jp.nlaocs.skriptSyntaxGenerator.data.common.SyntaxKind
 import jp.nlaocs.skriptSyntaxGenerator.util.annoValue
@@ -74,6 +75,9 @@ class ExpressionData(
 
     val returnTypeMultiplicityState: ReturnTypeMultiplicityState =
         returnTypeMultiplicityResult.state
+
+    val returnTypeMultiplicitySource: ExpressionCardinalitySourceAnalyzer.Source? =
+        ExpressionCardinalitySourceAnalyzer.analyze(s.type())
 
     @Transient
     private val acceptedChangersResult: AcceptedChangersResult =

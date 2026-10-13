@@ -194,10 +194,15 @@ expressionはplayer、location、number、listなどの値を生成する構文�
 | `sectionExpression` | boolean | 必須 | 値を返しながらindented sectionも持てるexpressionか。 |
 | `returnTypeMultiplicity` | string enum | state依存 | `SINGLE`、`MULTIPLE`、`BOTH`。`BOTH`は委譲先やruntime入力によって個数が変わる。 |
 | `returnTypeMultiplicityState` | resolution state | 必須 | bytecodeと継承関係からmultiplicityを安全に判定できたか。 |
+| `returnTypeMultiplicitySource` | object | 省略可 | `isSingle()` が `init(Expression[])` の特定入力へ委譲するという条件付き bytecode 根拠。省略時は不明。 |
 | `acceptedChangers` | ChangeMode map | state依存 | 対応する変更方法と引数型。`{}`は取得済みでread-only。 |
 | `acceptedChangersState` | resolution state | 必須 | changer metadataを安全に判定できたか。 |
 
 Multiplicityは「1回の評価で返す値の個数」であり、「候補Java型の個数」ではありません。`partial`は下限なので、期待型が配列にないことだけを理由にdynamic expressionを除外できません。legacy adapterは実装解析系stateを意図的に`unresolved`とし、例外的な構文はLSP側で上書きできます。
+
+`returnTypeMultiplicitySource` は `expressionIndex`（regex slot を除く、0始まりの Java `Expression[]` の位置）、`requiresExplicitInput`、`requiresParsedInput`、`isSingleMethodDeclaringClass`、`initMethodDeclaringClass` を持ちます。現行抽出では両条件が `true` です。利用側は明示的・non-null・解析完了の入力だけで、その入力の cardinality を引き継げます。slot 対応時には null・省略入力の位置を保持します。この根拠は `BOTH` の意味を変えず、default Expression の動作や先頭 child が入力元であることも保証しません。Skript 登録情報を使う任意のツール向けの情報です。
+
+抽出器は Skript メソッドを実行せず bytecode と継承関係を読みます。`isSingle()` の直接 field 委譲と、初期化・helper の有限な経路を追い、成功する全経路で同じ入力が保持されることを確認します。未対応命令、loop、入力の外部流出、曖昧な代入、非委譲の cardinality は省略します。入力16 slot、helper 深さ12、分岐状態256という解析上限を超えた場合も不明のままで、入力元を推測しません。
 
 ### `Sections.json`
 

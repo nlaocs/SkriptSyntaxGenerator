@@ -194,10 +194,15 @@ An expression is syntax that produces a value, such as a player, location, numbe
 | `sectionExpression` | boolean | Required | Whether the expression can own an indented section while also producing a value. |
 | `returnTypeMultiplicity` | string enum | State-dependent | `SINGLE`, `MULTIPLE`, or `BOTH`. `BOTH` means the amount depends on delegated/runtime input. |
 | `returnTypeMultiplicityState` | resolution state | Required | Whether multiplicity was safely inferred from bytecode and inheritance. |
+| `returnTypeMultiplicitySource` | object | Optional | Positive, conditional bytecode evidence that `isSingle()` delegates to one `init(Expression[])` input. Absence means unknown. |
 | `acceptedChangers` | change-mode map | State-dependent | Supported mutations and their argument types. `{}` means resolved and read-only. |
 | `acceptedChangersState` | resolution state | Required | Whether changer metadata was safely inferred. |
 
 Multiplicity is about the number of values produced by one evaluation, not the number of possible Java return types. A `partial` list is a lower bound and consumers must not exclude a dynamic expression merely because the expected type is absent. Legacy-adapter expressions intentionally report implementation-analysis state fields as `unresolved`; the LSP may override exceptional cases.
+
+`returnTypeMultiplicitySource` contains `expressionIndex` (zero-based Java `Expression[]` slot, excluding regex slots), `requiresExplicitInput`, `requiresParsedInput`, `isSingleMethodDeclaringClass`, and `initMethodDeclaringClass`. The current extractor sets both requirements to `true`: a consumer may propagate the corresponding parsed input's cardinality only for an explicit, non-null, fully parsed input. It must preserve null/omitted input positions while mapping slots. This evidence does not redefine `BOTH`, prove default-expression behavior, or say that the first child is the source. It is useful to any consumer of Skript registrations.
+
+The extractor reads class bytecode and inheritance without invoking Skript methods. It recognizes a direct field delegation from `isSingle()`, follows bounded initialization/helper paths, and requires every accepted path to retain the same input. Unknown instructions, loops, escaping inputs, ambiguous assignments, and non-delegating cardinality leave this field absent. Analysis is limited to 16 input slots, 12 helper levels, and 256 branch states. These limits mean unknown, never a guessed source.
 
 ### `Sections.json`
 
