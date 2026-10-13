@@ -204,6 +204,8 @@ Multiplicity is about the number of values produced by one evaluation, not the n
 
 The extractor reads class bytecode and inheritance without invoking Skript methods. It recognizes a direct field delegation from `isSingle()`, follows bounded initialization/helper paths, and requires every accepted path to retain the same input. Unknown instructions, loops, escaping inputs, ambiguous assignments, and non-delegating cardinality leave this field absent. Analysis is limited to 16 input slots, 12 helper levels, and 256 branch states. These limits mean unknown, never a guessed source.
 
+Constructors and the heap are not modeled: an untracked reference may alias the expression itself. Writes through such a receiver and unproven external calls invalidate source evidence. Helper dispatch first resolves the bytecode's symbolic owner and access flags; private/final/special calls retain that target, while class virtual overrides require a provable visibility/package relationship (including the defining class loader). Unsupported default-interface dispatch stays unknown. The delegated getter must call the public Expression `isSingle()` contract. The init ParseResult input is tracked separately for Skript's `hasTag(String)` metadata query; arbitrary unknown references never gain that role. The existing null-guard and fully-parsed LiteralUtils contracts remain conditional.
+
 ### `Sections.json`
 
 A section owns an indented block inside executable code. It may also be registered elsewhere; these booleans describe Java inheritance, not exclusive categories.

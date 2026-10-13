@@ -35,11 +35,16 @@ object ExpressionCardinalitySourceAnalyzer {
             code[1].op != Opcodes.GETFIELD || code[2].op !in setOf(Opcodes.INVOKEINTERFACE, Opcodes.INVOKEVIRTUAL) ||
             code[2].name != "isSingle" || code[2].desc != "()Z" || code[3].op != Opcodes.IRETURN
         ) return null
+        val expression = Class.forName("ch.njol.skript.lang.Expression", false, type.classLoader)
+        val delegateOwner = Class.forName(code[2].owner.replace('/', '.'), false, type.classLoader)
+        val delegate = find(delegateOwner, "isSingle", "()Z") ?: return null
+        if (!expression.isAssignableFrom(delegateOwner) || delegate.access and Opcodes.ACC_PUBLIC == 0 ||
+            delegate.access and (Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC) != 0) return null
         val field = canonicalField(type, code[1])
         val init = find(type, "init", INIT) ?: return null
         // A finite positive analysis; higher input indices and unsupported shapes remain unknown.
         for (index in 0 until 16) {
-            val outcomes = execute(type, init, listOf(Value.ArrayInput, Value.Unknown, Value.Unknown, Value.Unknown),
+            val outcomes = execute(type, init, listOf(Value.ArrayInput, Value.Unknown, Value.Unknown, Value.ParseMetadata),
                 Value.Unknown, field, index, 0) ?: return null
             val accepted = outcomes.filter { it.value != Value.Integer(0) }
             if (accepted.isNotEmpty() && accepted.all { it.source == Value.Capture(index) }) {
@@ -67,11 +72,13 @@ object ExpressionCardinalitySourceAnalyzer {
     }
     private data class Insn(val op: Int, val number: Int = 0, val owner: String = "",
         val name: String = "", val desc: String = "", val label: Label? = null)
-    private data class Method(val owner: String, val desc: String, val code: List<Insn>, val unsafe: Boolean)
+    private data class Method(val owner: String, val declaringClass: Class<*>, val desc: String,
+                              val access: Int, val code: List<Insn>, val unsafe: Boolean)
     private sealed interface Value {
         data object This : Value
         data object ArrayInput : Value
         data object Unknown : Value
+        data object ParseMetadata : Value
         data object Null : Value
         data class Capture(val index: Int) : Value
         data class Integer(val value: Int) : Value
@@ -132,6 +139,9 @@ object ExpressionCardinalitySourceAnalyzer {
                     }
                     Opcodes.PUTFIELD -> {
                         val value = pop(); val receiver = pop()
+                        // Constructors/heap aliases are not modeled. An untracked receiver
+                        // may be this object, even when the stored value is also unknown.
+                        if (receiver != Value.This) return null
                         if (receiver == Value.This && canonicalField(root, i) == field) frame.source = value
                         else if (value == Value.This || value is Value.Capture || value == Value.ArrayInput) return null
                         // Other fields are not tracked: storing an input/self alias there could
@@ -174,10 +184,14 @@ object ExpressionCardinalitySourceAnalyzer {
                             callArgs == listOf(Value.Capture(assumed))) {
                             // Conditional fact: the caller must verify a fully parsed explicit input.
                             push(Value.Integer(0))
+                        } else if (receiver == Value.ParseMetadata && i.op == Opcodes.INVOKEVIRTUAL &&
+                            i.owner == "ch/njol/skript/lang/SkriptParser\$ParseResult" &&
+                            i.name == "hasTag" && i.desc == "(Ljava/lang/String;)Z") {
+                            // Skript's init ParseResult tag query; unrelated references/helpers
+                            // are never treated as this trusted metadata input.
+                            push(Value.Unknown)
                         } else if (receiver == Value.This) {
-                            val owner = if (i.op == Opcodes.INVOKESPECIAL)
-                                Class.forName(i.owner.replace('/', '.'), false, root.classLoader) else root
-                            val called = find(owner, i.name, i.desc) ?: return null
+                            val called = resolveThisCall(root, i) ?: return null
                             val returned = execute(root, called, callArgs, frame.source, field, assumed, depth + 1)
                                 ?: return null
                             if (returned.isEmpty()) break
@@ -189,9 +203,10 @@ object ExpressionCardinalitySourceAnalyzer {
                             frame.source = returned.first().source
                             if (resultType.sort != Type.VOID) push(returned.first().value)
                         } else {
-                            if (receiver is Value.Capture || callArgs.any { it == Value.This || it is Value.Capture || it == Value.ArrayInput })
-                                return null
-                            if (resultType.sort != Type.VOID) push(Value.Unknown)
+                            // Unknown references may be constructor-created aliases to this.
+                            // Even an external call with no obvious input can mutate it through
+                            // an alias/global; only the explicit contracts above are accepted.
+                            return null
                         }
                     }
                     Opcodes.IRETURN, Opcodes.ARETURN -> { outcomes.add(Outcome(pop(), frame.source)); break }
@@ -202,6 +217,33 @@ object ExpressionCardinalitySourceAnalyzer {
             }
         }
         return outcomes
+    }
+
+    private fun resolveThisCall(root: Class<*>, instruction: Insn): Method? {
+        val owner = Class.forName(instruction.owner.replace('/', '.'), false, root.classLoader)
+        if (!owner.isAssignableFrom(root) || owner.isInterface || instruction.op == Opcodes.INVOKEINTERFACE)
+            return null // unsupported default-interface dispatch stays unknown
+        val resolved = find(owner, instruction.name, instruction.desc) ?: return null
+        if (resolved.access and Opcodes.ACC_STATIC != 0) return null
+        if (instruction.op == Opcodes.INVOKESPECIAL ||
+            resolved.access and (Opcodes.ACC_PRIVATE or Opcodes.ACC_FINAL) != 0) return resolved
+
+        var type: Class<*>? = root
+        while (type != null) {
+            val candidate = read(type)[instruction.name + instruction.desc]
+            if (candidate != null && candidate.access and (Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC) == 0) {
+                if (candidate.declaringClass == resolved.declaringClass) return resolved
+                val publicOverride = resolved.access and Opcodes.ACC_PUBLIC != 0 && candidate.access and Opcodes.ACC_PUBLIC != 0
+                val protectedOverride = resolved.access and Opcodes.ACC_PROTECTED != 0 &&
+                    candidate.access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED) != 0
+                val packageOverride = resolved.access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED) == 0 &&
+                    candidate.declaringClass.packageName == resolved.declaringClass.packageName &&
+                    candidate.declaringClass.classLoader == resolved.declaringClass.classLoader
+                return if (publicOverride || protectedOverride || packageOverride) candidate else null
+            }
+            type = type.superclass
+        }
+        return null
     }
 
     private fun find(type: Class<*>, name: String, desc: String, seen: MutableSet<Class<*>> = mutableSetOf()): Method? {
@@ -240,7 +282,7 @@ object ExpressionCardinalitySourceAnalyzer {
                         override fun visitLookupSwitchInsn(dflt: Label, keys: IntArray, labels: Array<out Label>) { unsafe = true }
                         override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) { unsafe = true }
                         override fun visitTryCatchBlock(start: Label, end: Label, handler: Label, type: String?) { unsafe = true }
-                        override fun visitEnd() { methods[name + desc] = Method(owner, desc, code, unsafe) }
+                        override fun visitEnd() { methods[name + desc] = Method(owner, type, desc, access, code, unsafe) }
                     }
                 }
             }, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
@@ -248,4 +290,3 @@ object ExpressionCardinalitySourceAnalyzer {
         methods
     }
 }
-

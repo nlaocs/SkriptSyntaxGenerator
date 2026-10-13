@@ -204,6 +204,8 @@ Multiplicityは「1回の評価で返す値の個数」であり、「候補Java
 
 抽出器は Skript メソッドを実行せず bytecode と継承関係を読みます。`isSingle()` の直接 field 委譲と、初期化・helper の有限な経路を追い、成功する全経路で同じ入力が保持されることを確認します。未対応命令、loop、入力の外部流出、曖昧な代入、非委譲の cardinality は省略します。入力16 slot、helper 深さ12、分岐状態256という解析上限を超えた場合も不明のままで、入力元を推測しません。
 
+constructor と heap はモデル化しません。未追跡の参照は expression 自身の alias かもしれないため、その receiver への書込みと未証明の外部呼出しは入力元の根拠を無効にします。helper はまず bytecode の symbolic owner と access flags で解決します。private・final・special 呼出しはその対象を保ち、class の virtual override は visibility・package・定義 class loader の関係を確認できる場合だけ追います。未対応の default-interface dispatch は不明です。getter の委譲先も public な Expression `isSingle()` 契約に限ります。init の ParseResult 入力は Skript の `hasTag(String)` metadata query 用に別の role として保持し、任意の不明参照へその role を与えません。null guard と解析完了 LiteralUtils の既存契約は条件付きのままです。
+
 ### `Sections.json`
 
 sectionは実行コード中でindented blockを持ちます。別categoryにも登録されることがあるため、以下は排他的分類ではなくJava継承関係です。

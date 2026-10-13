@@ -3,10 +3,51 @@ package jp.nlaocs.skriptSyntaxGenerator.bytecode
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertFalse
+import ch.njol.skript.lang.Expression
+import ch.njol.util.Kleenean
 import org.junit.jupiter.api.Test
 import jp.nlaocs.skriptSyntaxGenerator.serializer.JacksonFactory
 
 class ExpressionCardinalitySourceAnalyzerTest {
+    @Test
+    fun `constructor aliases cannot prove a source after writes or external escape`() {
+        val input = CardinalitySourceFixtures.Single()
+        for (instance in listOf(CardinalitySourceFixtures.ConstructorAliasWrite(), CardinalitySourceFixtures.ConstructorAliasEscape())) {
+            assertTrue(instance.init(arrayOf<Expression<*>>(input), 0, Kleenean.FALSE, null))
+            assertTrue(input.isSingle)
+            assertFalse(instance.isSingle)
+            assertNull(ExpressionCardinalitySourceAnalyzer.analyze(instance.javaClass))
+        }
+    }
+
+    @Test
+    fun `private helper dispatch uses the symbolic owner rather than a child shadow`() {
+        val input = CardinalitySourceFixtures.Single()
+        val changed = CardinalitySourceFixtures.PrivateShadow()
+        assertTrue(changed.init(arrayOf<Expression<*>>(input), 0, Kleenean.FALSE, null))
+        assertFalse(changed.isSingle)
+        assertNull(ExpressionCardinalitySourceAnalyzer.analyze(changed.javaClass))
+        val preserved = CardinalitySourceFixtures.PrivateInputShadow()
+        assertTrue(preserved.init(arrayOf<Expression<*>>(input), 0, Kleenean.FALSE, null))
+        assertTrue(preserved.isSingle)
+        assertEquals(0, ExpressionCardinalitySourceAnalyzer.analyze(preserved.javaClass)?.expressionIndex)
+    }
+
+    @Test
+    fun `ordinary virtual overrides and explicit super calls retain their dispatch`() {
+        for (instance in listOf(CardinalitySourceFixtures.VirtualInput(), CardinalitySourceFixtures.SuperForwardedVirtualInput())) {
+            val inputs = arrayOf<Expression<*>>(CardinalitySourceFixtures.OneToMany(), CardinalitySourceFixtures.Single())
+            assertTrue(instance.init(inputs, 0, Kleenean.FALSE, null))
+            assertTrue(instance.isSingle)
+            assertEquals(1, ExpressionCardinalitySourceAnalyzer.analyze(instance.javaClass)?.expressionIndex)
+        }
+        val explicit = CardinalitySourceFixtures.ExplicitSuperHelper()
+        assertTrue(explicit.init(arrayOf<Expression<*>>(CardinalitySourceFixtures.Single(), CardinalitySourceFixtures.Single()), 0, Kleenean.FALSE, null))
+        assertFalse(explicit.isSingle)
+        assertNull(ExpressionCardinalitySourceAnalyzer.analyze(explicit.javaClass))
+    }
+
     @Test
     fun `does not lose an input escape through an untracked field alias`() {
         assertNull(ExpressionCardinalitySourceAnalyzer.analyze(CardinalitySourceFixtures.AliasedEscape::class.java))
@@ -40,4 +81,3 @@ class ExpressionCardinalitySourceAnalyzerTest {
         }
     }
 }
-
