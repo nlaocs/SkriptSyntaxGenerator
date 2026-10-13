@@ -7,6 +7,69 @@ import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
 
 public final class CardinalitySourceFixtures {
+    public static class StaticCarrier {
+        public static Direct current;
+        public static int initialized;
+    }
+    public static class LazyMutator {
+        public static final Object TRIGGER = mutate();
+        private static Object mutate() {
+            StaticCarrier.initialized++;
+            StaticCarrier.current.source = new OneToMany();
+            return new Object();
+        }
+    }
+    public static class InitGlobalRead extends Direct {
+        public InitGlobalRead() { StaticCarrier.current = this; }
+        @Override public boolean init(Expression<?>[] inputs, int pattern, Kleenean delayed, ParseResult result) {
+            source = inputs[0];
+            Object ignored = LazyMutator.TRIGGER;
+            return true;
+        }
+    }
+    public static class AncestorSpecialBase extends Direct {
+        protected void setInput(Expression<?> input) { source = input; }
+    }
+    public static class AncestorSpecialMiddle extends AncestorSpecialBase {
+        @Override protected void setInput(Expression<?> input) { source = new OneToMany(); }
+    }
+    public static class AncestorSpecialChild extends AncestorSpecialMiddle {
+        @Override public boolean init(Expression<?>[] inputs, int pattern, Kleenean delayed, ParseResult result) {
+            super.setInput(inputs[0]);
+            return true;
+        }
+    }
+    public static class InheritedForwarded extends Forwarded {}
+
+    public static Direct ancestorSpecialFixture() throws Exception {
+        String name = AncestorSpecialChild.class.getName();
+        String resource = name.replace('.', '/') + ".class";
+        byte[] original;
+        try (java.io.InputStream input = CardinalitySourceFixtures.class.getClassLoader().getResourceAsStream(resource)) {
+            original = input.readAllBytes();
+        }
+        net.bytebuddy.jar.asm.ClassWriter writer = new net.bytebuddy.jar.asm.ClassWriter(0);
+        new net.bytebuddy.jar.asm.ClassReader(original).accept(new net.bytebuddy.jar.asm.ClassVisitor(net.bytebuddy.jar.asm.Opcodes.ASM9, writer) {
+            @Override public net.bytebuddy.jar.asm.MethodVisitor visitMethod(int access, String method, String descriptor, String signature, String[] exceptions) {
+                return new net.bytebuddy.jar.asm.MethodVisitor(net.bytebuddy.jar.asm.Opcodes.ASM9, super.visitMethod(access, method, descriptor, signature, exceptions)) {
+                    @Override public void visitMethodInsn(int opcode, String owner, String method, String descriptor, boolean isInterface) {
+                        if (opcode == net.bytebuddy.jar.asm.Opcodes.INVOKESPECIAL && method.equals("setInput") && owner.endsWith("$AncestorSpecialMiddle"))
+                            owner = owner.replace("$AncestorSpecialMiddle", "$AncestorSpecialBase");
+                        super.visitMethodInsn(opcode, owner, method, descriptor, isInterface);
+                    }
+                };
+            }
+        }, 0);
+        byte[] changed = writer.toByteArray();
+        Class<?> type = new ClassLoader(CardinalitySourceFixtures.class.getClassLoader()) {
+            Class<?> fixture() { return defineClass(name, changed, 0, changed.length); }
+            @Override public java.io.InputStream getResourceAsStream(String path) {
+                return path.equals(resource) ? new java.io.ByteArrayInputStream(changed) : super.getResourceAsStream(path);
+            }
+        }.fixture();
+        return (Direct) type.getConstructor().newInstance();
+    }
+
     public static class Single extends Direct {
         @Override public boolean isSingle() { return true; }
     }

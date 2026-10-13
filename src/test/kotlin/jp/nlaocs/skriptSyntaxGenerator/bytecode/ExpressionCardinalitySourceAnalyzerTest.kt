@@ -11,6 +11,33 @@ import jp.nlaocs.skriptSyntaxGenerator.serializer.JacksonFactory
 
 class ExpressionCardinalitySourceAnalyzerTest {
     @Test
+    fun `static field reads cannot hide a class initializer mutation`() {
+        val instance = CardinalitySourceFixtures.InitGlobalRead()
+        assertEquals(0, CardinalitySourceFixtures.StaticCarrier.initialized)
+        assertNull(ExpressionCardinalitySourceAnalyzer.analyze(instance.javaClass))
+        assertEquals(0, CardinalitySourceFixtures.StaticCarrier.initialized)
+        val input = CardinalitySourceFixtures.Single()
+        assertTrue(instance.init(arrayOf<Expression<*>>(input), 0, Kleenean.FALSE, null))
+        assertTrue(input.isSingle)
+        assertFalse(instance.isSingle)
+        assertEquals(1, CardinalitySourceFixtures.StaticCarrier.initialized)
+    }
+
+    @Test
+    fun `ancestor special owner is unknown while inherited caller super forwarding stays proven`() {
+        val changed = CardinalitySourceFixtures.ancestorSpecialFixture()
+        val input = CardinalitySourceFixtures.Single()
+        assertNull(ExpressionCardinalitySourceAnalyzer.analyze(changed.javaClass))
+        assertTrue(changed.init(arrayOf<Expression<*>>(input), 0, Kleenean.FALSE, null))
+        assertTrue(input.isSingle)
+        assertFalse(changed.isSingle)
+        val inherited = CardinalitySourceFixtures.InheritedForwarded()
+        assertEquals(1, ExpressionCardinalitySourceAnalyzer.analyze(inherited.javaClass)?.expressionIndex)
+        assertTrue(inherited.init(arrayOf<Expression<*>>(CardinalitySourceFixtures.OneToMany(), input), 0, Kleenean.FALSE, null))
+        assertTrue(inherited.isSingle)
+    }
+
+    @Test
     fun `constructor aliases cannot prove a source after writes or external escape`() {
         val input = CardinalitySourceFixtures.Single()
         for (instance in listOf(CardinalitySourceFixtures.ConstructorAliasWrite(), CardinalitySourceFixtures.ConstructorAliasEscape())) {

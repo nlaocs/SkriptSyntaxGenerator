@@ -121,7 +121,10 @@ object ExpressionCardinalitySourceAnalyzer {
                     Opcodes.ACONST_NULL -> push(Value.Null)
                     in Opcodes.ICONST_M1..Opcodes.ICONST_5 -> push(Value.Integer(i.op - Opcodes.ICONST_0))
                     Opcodes.BIPUSH, Opcodes.SIPUSH -> push(Value.Integer(i.number))
-                    Opcodes.LDC, Opcodes.NEW, Opcodes.GETSTATIC -> push(Value.Unknown)
+                    Opcodes.LDC -> push(Value.Unknown)
+                    // Active uses may initialize another class and mutate this through a
+                    // constructor-published alias. Never execute or assume away <clinit>.
+                    Opcodes.NEW, Opcodes.GETSTATIC -> return null
                     Opcodes.ALOAD, Opcodes.ILOAD -> push(frame.locals[i.number] ?: Value.Unknown)
                     Opcodes.ASTORE, Opcodes.ISTORE -> frame.locals[i.number] = pop()
                     Opcodes.AALOAD -> {
@@ -175,13 +178,13 @@ object ExpressionCardinalitySourceAnalyzer {
                             (i.owner == "com/google/common/base/Preconditions" && i.name == "checkNotNull") ||
                             (i.owner == "java/util/Objects" && i.name == "requireNonNull") ||
                             (i.owner == "kotlin/jvm/internal/Intrinsics" && i.name in setOf("checkNotNull", "checkNotNullParameter")))
-                        if (identityGuard && callArgs.isNotEmpty()) {
+                        if (identityGuard && callArgs.isNotEmpty() && initializationFree(root, i.owner)) {
                             // These guards preserve object identity on every normally returning path.
                             if (callArgs.first() == Value.Null) break
                             if (resultType.sort != Type.VOID) push(callArgs.first())
                         } else if (i.op == Opcodes.INVOKESTATIC &&
                             i.owner == "ch/njol/skript/util/LiteralUtils" && i.name == "hasUnparsedLiteral" &&
-                            callArgs == listOf(Value.Capture(assumed))) {
+                            callArgs == listOf(Value.Capture(assumed)) && initializationFree(root, i.owner)) {
                             // Conditional fact: the caller must verify a fully parsed explicit input.
                             push(Value.Integer(0))
                         } else if (receiver == Value.ParseMetadata && i.op == Opcodes.INVOKEVIRTUAL &&
@@ -191,7 +194,7 @@ object ExpressionCardinalitySourceAnalyzer {
                             // are never treated as this trusted metadata input.
                             push(Value.Unknown)
                         } else if (receiver == Value.This) {
-                            val called = resolveThisCall(root, i) ?: return null
+                            val called = resolveThisCall(root, method, i) ?: return null
                             val returned = execute(root, called, callArgs, frame.source, field, assumed, depth + 1)
                                 ?: return null
                             if (returned.isEmpty()) break
@@ -219,14 +222,40 @@ object ExpressionCardinalitySourceAnalyzer {
         return outcomes
     }
 
-    private fun resolveThisCall(root: Class<*>, instruction: Insn): Method? {
+    private fun initializationFree(root: Class<*>, owner: String): Boolean {
+        val pending = ArrayDeque<Class<*>>()
+        pending.add(Class.forName(owner.replace('/', '.'), false, root.classLoader))
+        val seen = mutableSetOf<Class<*>>()
+        while (pending.isNotEmpty()) {
+            val type = pending.removeFirst()
+            if (!seen.add(type)) continue
+            // The real bootstrap Object is initialized before this analyzer can run.
+            // Do not depend on ASM supporting a newer JDK's Object.class to prove that.
+            if (type == Any::class.java) continue
+            val methods = read(type)
+            if (methods.isEmpty() || methods.keys.any { it.startsWith("<clinit>") }) return false
+            type.superclass?.let { pending.add(it) }
+            pending.addAll(type.interfaces)
+        }
+        return true
+    }
+
+    private fun resolveThisCall(root: Class<*>, caller: Method, instruction: Insn): Method? {
         val owner = Class.forName(instruction.owner.replace('/', '.'), false, root.classLoader)
         if (!owner.isAssignableFrom(root) || owner.isInterface || instruction.op == Opcodes.INVOKEINTERFACE)
             return null // unsupported default-interface dispatch stays unknown
         val resolved = find(owner, instruction.name, instruction.desc) ?: return null
-        if (resolved.access and Opcodes.ACC_STATIC != 0) return null
-        if (instruction.op == Opcodes.INVOKESPECIAL ||
-            resolved.access and (Opcodes.ACC_PRIVATE or Opcodes.ACC_FINAL) != 0) return resolved
+        if (resolved.access and Opcodes.ACC_STATIC != 0 || resolved.declaringClass.isInterface) return null
+        if (instruction.op == Opcodes.INVOKESPECIAL) {
+            if (instruction.name == "<init>") return null
+            // Restrict special selection to the current declaring class or its direct
+            // superclass. An ancestor owner can select an intermediate override under
+            // ACC_SUPER, so symbolic resolution alone is not a proof of its target.
+            return if (owner == caller.declaringClass ||
+                owner == caller.declaringClass.superclass && resolved.access and Opcodes.ACC_PRIVATE == 0)
+                resolved else null
+        }
+        if (resolved.access and (Opcodes.ACC_PRIVATE or Opcodes.ACC_FINAL) != 0) return resolved
 
         var type: Class<*>? = root
         while (type != null) {

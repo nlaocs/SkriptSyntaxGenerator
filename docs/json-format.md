@@ -204,7 +204,21 @@ Multiplicity is about the number of values produced by one evaluation, not the n
 
 The extractor reads class bytecode and inheritance without invoking Skript methods. It recognizes a direct field delegation from `isSingle()`, follows bounded initialization/helper paths, and requires every accepted path to retain the same input. Unknown instructions, loops, escaping inputs, ambiguous assignments, and non-delegating cardinality leave this field absent. Analysis is limited to 16 input slots, 12 helper levels, and 256 branch states. These limits mean unknown, never a guessed source.
 
-Constructors and the heap are not modeled: an untracked reference may alias the expression itself. Writes through such a receiver and unproven external calls invalidate source evidence. Helper dispatch first resolves the bytecode's symbolic owner and access flags; private/final/special calls retain that target, while class virtual overrides require a provable visibility/package relationship (including the defining class loader). Unsupported default-interface dispatch stays unknown. The delegated getter must call the public Expression `isSingle()` contract. The init ParseResult input is tracked separately for Skript's `hasTag(String)` metadata query; arbitrary unknown references never gain that role. The existing null-guard and fully-parsed LiteralUtils contracts remain conditional.
+Constructors and the heap are not modeled: an untracked reference may alias the expression itself. Writes through such a receiver and unproven external calls invalidate source evidence. The delegated getter must call the public Expression `isSingle()` contract. The init ParseResult input is tracked separately for Skript's `hasTag(String)` metadata query; arbitrary unknown references never gain that role. The null-guard and fully-parsed LiteralUtils contracts remain conditional and require their declaring class hierarchy's available bytecode to have no class initializer.
+
+This is a restricted dependency analysis, not a JVM emulator. Its safety boundary is:
+
+| Operations | Supported proof / unknown boundary |
+| --- | --- |
+| Constants, local/stack operations, casts and forward branches | Track only modeled identities/integers. Unknown branch outcomes are explored conservatively; loops, switches, unsupported operations and exception handlers invalidate evidence. |
+| Expression-array reads | Only a known init input array and constant index establish a Capture identity. |
+| Instance fields | The canonical source field on proven This may be updated. Unknown-receiver writes and input/self aliases stored in other fields invalidate evidence. Untracked reads do not become proven This. |
+| Active class uses | `GETSTATIC` and `NEW` always invalidate evidence, including when a field result looks unused. `<clinit>` is never executed. `PUTSTATIC` and array stores are unsupported. |
+| External calls | Only the explicitly modeled null-guard, fully-parsed LiteralUtils and standard init-ParseResult metadata contracts are supported. Null-guard/LiteralUtils static owners, all superclasses and interfaces must have available bytecode with no `<clinit>`, except the actual bootstrap Object, already initialized before the analyzer can run; other calls remain unknown even if no input argument is visible. |
+| Private/final and class virtual helpers | Symbolic-owner resolution retains access/declaring-class information. Private/final virtual calls use the resolved method; normal overrides require provable visibility and runtime-package/class-loader relationships. |
+| Special helpers | Only non-constructor calls naming the executing method's own declaring class, or its direct superclass with a non-private target, are supported. Runtime root class is not the special caller. More distant ancestor owners, constructors and default-interface dispatch are unknown, since symbolic resolution alone does not prove JVM selection. |
+
+Every normally accepted path must remain inside this boundary and retain the same Capture. A rejected path in the analysis suppresses the optional metadata rather than applying a heuristic or widening the proof to arbitrary constructor/class-initializer/heap behavior.
 
 ### `Sections.json`
 
