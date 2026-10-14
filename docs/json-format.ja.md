@@ -194,10 +194,32 @@ expressionはplayer、location、number、listなどの値を生成する構文�
 | `sectionExpression` | boolean | 必須 | 値を返しながらindented sectionも持てるexpressionか。 |
 | `returnTypeMultiplicity` | string enum | state依存 | `SINGLE`、`MULTIPLE`、`BOTH`。`BOTH`は委譲先やruntime入力によって個数が変わる。 |
 | `returnTypeMultiplicityState` | resolution state | 必須 | bytecodeと継承関係からmultiplicityを安全に判定できたか。 |
+| `returnTypeMultiplicitySource` | object | 省略可 | `isSingle()` が `init(Expression[])` の特定入力へ委譲するという条件付き bytecode 根拠。省略時は不明。 |
 | `acceptedChangers` | ChangeMode map | state依存 | 対応する変更方法と引数型。`{}`は取得済みでread-only。 |
 | `acceptedChangersState` | resolution state | 必須 | changer metadataを安全に判定できたか。 |
 
 Multiplicityは「1回の評価で返す値の個数」であり、「候補Java型の個数」ではありません。`partial`は下限なので、期待型が配列にないことだけを理由にdynamic expressionを除外できません。legacy adapterは実装解析系stateを意図的に`unresolved`とし、例外的な構文はLSP側で上書きできます。
+
+`returnTypeMultiplicitySource` は `expressionIndex`（regex slot を除く、0始まりの Java `Expression[]` の位置）、`requiresExplicitInput`、`requiresParsedInput`、`isSingleMethodDeclaringClass`、`initMethodDeclaringClass` を持ちます。現行抽出では両条件が `true` です。利用側は明示的・non-null・解析完了の入力だけで、その入力の cardinality を引き継げます。slot 対応時には null・省略入力の位置を保持します。この根拠は `BOTH` の意味を変えず、default Expression の動作や先頭 child が入力元であることも保証しません。Skript 登録情報を使う任意のツール向けの情報です。
+
+抽出器は Skript メソッドを実行せず bytecode と継承関係を読みます。`isSingle()` の直接 field 委譲と、初期化・helper の有限な経路を追い、成功する全経路で同じ入力が保持されることを確認します。未対応命令、loop、入力の外部流出、曖昧な代入、非委譲の cardinality は省略します。入力16 slot、helper 深さ12、分岐状態256という解析上限を超えた場合も不明のままで、入力元を推測しません。
+
+constructor と heap はモデル化しません。未追跡の参照は expression 自身の alias かもしれないため、その receiver への書込みと未証明の外部呼出しは入力元の根拠を無効にします。getter の委譲先は public な Expression `isSingle()` 契約に限ります。init の ParseResult 入力は Skript の `hasTag(String)` metadata query 用に別の role として保持し、任意の不明参照へその role を与えません。null guard と解析完了 LiteralUtils は条件付き契約で、static owner の階層に class initializer がないことも必要です。
+
+これは限定された依存解析であり、JVM 全体のエミュレーターではありません。安全に扱う範囲は次のとおりです。
+
+| 操作 | 対応する根拠／不明に落とす境界 |
+| --- | --- |
+| 定数・local/stack・cast・前方分岐 | モデル化した identity と整数だけを追跡。不明な分岐は両方を探索し、loop・switch・未対応命令・exception handler は根拠を無効化。 |
+| LDC と動的実行 | 通常の String／数値／class／MethodType／MethodHandle 定数は既存のモデル化した動作を保持。ConstantDynamic（入れ子 bootstrap 引数を含む）と将来の不明な LDC operand は bootstrap を実行せず method 全体を無効化。Invokedynamic は未対応。getter も unsafe flag を確認してから4命令の委譲形を判定し、init／helper と同じく未対応命令を通さない。読み込んだ handle を通す未証明の呼出しも未対応。 |
+| Expression array の読出し | 既知の init 入力配列と定数 index の場合だけ Capture identity を認定。 |
+| instance field | This と確認できた canonical source field は更新可能。不明 receiver の書込み、別 field への入力／自己 alias 保存は根拠を無効化。未追跡の読出しを This と推測しない。 |
+| class の active use | `GETSTATIC` と `NEW` は結果が未使用でも常に根拠を無効化。`<clinit>` は実行しない。`PUTSTATIC` と array store も未対応。 |
+| 外部呼出し | 明示した null guard・解析完了 LiteralUtils・標準 init ParseResult の metadata 契約だけに対応。static guard／LiteralUtils の owner・superclass・interface に読める bytecode があり、`<clinit>` がないことが必要。ただし解析器が動く前に初期化済みの実 bootstrap Object は確認対象外。それ以外は入力引数が見えなくても不明。 |
+| private/final と class virtual helper | symbolic owner の解決で access と declaring class を保持。private/final virtual は解決した method、通常 override は visibility と runtime package／class loader の関係を確認できる場合だけ追跡。 |
+| special helper | 実行中 method の declaring class 自身、または直近 superclass の non-private target を指す non-constructor 呼出しだけに対応。runtime root class を caller としない。祖先 owner・constructor・default-interface dispatch は JVM 選択を証明できないため不明。 |
+
+正常に成功する全経路がこの範囲内にあり、同じ Capture を保持する場合だけ optional metadata を出します。未対応経路では metadata を省略し、constructor・class initializer・heap の任意の動作を推測して証明範囲を広げません。
 
 ### `Sections.json`
 
